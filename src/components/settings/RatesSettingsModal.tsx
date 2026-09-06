@@ -42,7 +42,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
     }));
   };
 
-  const handleSurchargeChange = (field: keyof AppSettings['rates']['surcharges'], value: any) => {
+  const handleSurchargeChange = (field: keyof AppSettings['rates']['surcharges'], value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       rates: {
@@ -80,7 +80,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
     }));
   };
 
-  const handleUpdateClient = (id: string, field: keyof ClientProfile, value: any) => {
+  const handleUpdateClient = (id: string, field: keyof ClientProfile, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       clients: prev.clients.map(c => c.id === id ? { ...c, [field]: value } : c)
@@ -95,7 +95,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
   };
 
   // Preset operations
-  const handleUpdatePreset = (id: string, field: keyof ShiftPreset, value: any) => {
+  const handleUpdatePreset = (id: string, field: keyof ShiftPreset, value: string | number | boolean | string[]) => {
     setLocalPresets(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 

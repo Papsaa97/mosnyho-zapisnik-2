@@ -9,6 +9,7 @@ import {
 /**
  * Calculates net worked hours from start time, end time, and break minutes.
  * Handles overnight shifts across midnight (e.g. 22:00 to 06:00).
+ * Guards against NaN, negative results, and excessive break minutes.
  */
 export function calculateNetHours(startTime: string, endTime: string, breakMinutes: number): number {
   if (!startTime || !endTime) return 0;
@@ -27,9 +28,12 @@ export function calculateNetHours(startTime: string, endTime: string, breakMinut
   }
 
   const durationMinutes = endMinutes - startMinutes;
-  const netMinutes = Math.max(0, durationMinutes - (breakMinutes || 0));
+  // Guard: break cannot exceed shift duration (already validated in form, but safety net here)
+  const safeBreak = Math.min(Math.max(0, breakMinutes || 0), durationMinutes);
+  const netMinutes = Math.max(0, durationMinutes - safeBreak);
 
-  return Math.round((netMinutes / 60) * 100) / 100;
+  const result = Math.round((netMinutes / 60) * 100) / 100;
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**

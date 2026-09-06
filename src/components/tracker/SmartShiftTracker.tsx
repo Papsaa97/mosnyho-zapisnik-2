@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Play, 
   Pause, 
@@ -13,13 +13,13 @@ import {
   History
 } from 'lucide-react';
 import { useShiftTimer, formatDurationMs, formatTimestampToTime } from '../../hooks/useShiftTimer';
-import { ShiftPreset, AppSettings, WorkType, WeldingMethod } from '../../types';
+import { ShiftPreset, AppSettings, WorkType, WeldingMethod, ShiftCheckoutData } from '../../types';
 import { SmartCheckoutModal } from './SmartCheckoutModal';
 import { triggerHaptic } from '../../utils/haptics';
 
 export interface SmartShiftTrackerProps {
   timer: ReturnType<typeof useShiftTimer>;
-  onFinishShift: (checkoutData: ReturnType<ReturnType<typeof useShiftTimer>['getShiftCheckoutData']>) => void;
+  onFinishShift: (checkoutData: ShiftCheckoutData) => void;
   onOpenManualEntry: () => void;
   presets: ShiftPreset[];
   settings: AppSettings;
@@ -67,7 +67,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
   const [showConfig, setShowConfig] = useState<boolean>(false);
   const [showTimeline, setShowTimeline] = useState<boolean>(true);
   const [isSmartCheckoutOpen, setIsSmartCheckoutOpen] = useState<boolean>(false);
-  const [smartCheckoutData, setSmartCheckoutData] = useState<any>(null);
+  const [smartCheckoutData, setSmartCheckoutData] = useState<ShiftCheckoutData | null>(null);
 
   // Formatted timer displays
   const netWorkedFormatted = formatDurationMs(netWorkedMs);

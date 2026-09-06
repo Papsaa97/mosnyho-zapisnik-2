@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   X, 
   Save, 
@@ -28,7 +28,8 @@ import {
   WeldingMethod, 
   ExtraCostItem, 
   WorkEntryStatus,
-  AppSettings
+  AppSettings,
+  INPUT_LIMITS
 } from '../../types';
 import { 
   calculateNetHours, 
@@ -285,9 +286,35 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     setNotes(prev => (prev ? `${prev} | ${tag}` : tag));
   };
 
+  // Validation: computed time error
+  const timeValidationError = useMemo(() => {
+    if (!startTime || !endTime) return null;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
+
+    const startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    // Allow overnight shifts (end < start means next day, handled in calculateNetHours)
+    // But warn if net hours would be <= 0 and it doesn't look like an overnight shift
+    if (endMin === startMin) return 'Konec směny musí být jiný čas než začátek.';
+
+    // Check if break exceeds total duration
+    const totalMin = endMin >= startMin ? endMin - startMin : (24 * 60 - startMin) + endMin;
+    if (breakMinutes >= totalMin) {
+      return `Pauza (${breakMinutes} min) nesmí přesáhnout celkovou délku směny (${totalMin} min).`;
+    }
+    return null;
+  }, [startTime, endTime, breakMinutes]);
+
   // Save handler
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (timeValidationError) {
+      alert(`Chyba v časech: ${timeValidationError}`);
+      return;
+    }
 
     const entryToSave: WorkEntry = {
       id: editingEntry ? editingEntry.id : `entry-${Date.now()}`,
@@ -329,7 +356,14 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
 
     await onSave(entryToSave);
     onClose();
-  };
+  }, [
+    timeValidationError, editingEntry, date, projectCode, projectName, clientName,
+    workType, startTime, endTime, breakMinutes, totalHours, baseHourlyRate,
+    complexityMultiplier, shiftSurcharges, calculatedHourlyRate, isManualOverride,
+    manualTotalOverride, distanceKm, ratePerKm, travelTimeHours, travelHourlyRate,
+    dietAllowance, dietType, extraCosts, grandTotal, status, notes, weldingMethod,
+    initialValues, invoiceNumber, onSave, onClose
+  ]);
 
   if (!isOpen) return null;
 
@@ -523,13 +557,17 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
           </div>
 
           {/* Section 2: Časový fond (Od - Do, Pauza, Výpočet čistých hodin) */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-4">
+          <div className={`bg-slate-950/50 border rounded-xl p-3.5 sm:p-4 space-y-4 transition-colors ${timeValidationError ? 'border-rose-500/60' : 'border-slate-800'}`}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 Časový fond a odpracované hodiny
               </label>
-              <div className="text-xs font-extrabold text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+              <div className={`text-xs font-extrabold px-2.5 py-1 rounded-lg border ${
+                timeValidationError
+                  ? 'text-rose-400 bg-rose-950/40 border-rose-500/30'
+                  : 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30'
+              }`}>
                 Čistý čas: <span className="text-sm">{totalHours.toFixed(2).replace('.', ',')} h</span>
               </div>
             </div>
@@ -544,7 +582,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                  className={`w-full bg-slate-900 border rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none ${timeValidationError ? 'border-rose-500' : 'border-slate-700'}`}
                   style={{ minHeight: '44px' }}
                 />
               </div>
@@ -552,21 +590,31 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Konec směny (Do)
+                  {totalHours > 0 && <span className="ml-1 text-slate-500">(noční = +1 den, OK)</span>}
                 </label>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                  className={`w-full bg-slate-900 border rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none ${timeValidationError ? 'border-rose-500' : 'border-slate-700'}`}
                   style={{ minHeight: '44px' }}
                 />
               </div>
             </div>
 
+            {/* Time validation error banner */}
+            {timeValidationError && (
+              <div className="flex items-center gap-2 bg-rose-950/40 border border-rose-500/40 rounded-lg px-3 py-2 text-xs text-rose-300 font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                {timeValidationError}
+              </div>
+            )}
+
             {/* Quick Break Buttons */}
             <QuickBreakButtons value={breakMinutes} onChange={setBreakMinutes} />
           </div>
+
 
           {/* Section 3: Flexibilní kalkulátor sazeb & Příplatky */}
           <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-4">
@@ -591,7 +639,9 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     type="number"
                     inputMode="decimal"
                     value={baseHourlyRate}
-                    onChange={(e) => setBaseHourlyRate(Number(e.target.value))}
+                    onChange={(e) => setBaseHourlyRate(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_HOURLY_RATE))}
+                    min={0}
+                    max={INPUT_LIMITS.MAX_HOURLY_RATE}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />
@@ -717,7 +767,9 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     type="number"
                     inputMode="numeric"
                     value={distanceKm}
-                    onChange={(e) => setDistanceKm(Number(e.target.value))}
+                    onChange={(e) => setDistanceKm(Math.min(Math.max(0, Number(e.target.value)), INPUT_LIMITS.MAX_DISTANCE_KM))}
+                    min={0}
+                    max={INPUT_LIMITS.MAX_DISTANCE_KM}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />
@@ -736,6 +788,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     inputMode="decimal"
                     value={ratePerKm}
                     onChange={(e) => setRatePerKm(Number(e.target.value))}
+                    min={0}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />
@@ -754,7 +807,9 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     step="0.5"
                     inputMode="decimal"
                     value={travelTimeHours}
-                    onChange={(e) => setTravelTimeHours(Number(e.target.value))}
+                    onChange={(e) => setTravelTimeHours(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_TRAVEL_HOURS))}
+                    min={0}
+                    max={INPUT_LIMITS.MAX_TRAVEL_HOURS}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />
@@ -773,6 +828,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     inputMode="numeric"
                     value={travelHourlyRate}
                     onChange={(e) => setTravelHourlyRate(Number(e.target.value))}
+                    min={0}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />

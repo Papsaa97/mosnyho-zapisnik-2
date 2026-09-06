@@ -5,9 +5,10 @@ import {
   Calendar, 
   Download, 
   Plus, 
-  Building2
+  Building2,
+  HardHat
 } from 'lucide-react';
-import { WorkEntry, WorkEntryStatus, ShiftPreset, AppSettings } from '../../types';
+import { WorkEntry, WorkEntryStatus, ShiftPreset, AppSettings, ShiftCheckoutData } from '../../types';
 import { EntryCard } from './EntryCard';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
@@ -21,7 +22,7 @@ interface EntriesListProps {
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: WorkEntryStatus) => void;
   timer: ReturnType<typeof useShiftTimer>;
-  onFinishLiveShift: (checkoutData: any) => void;
+  onFinishLiveShift: (checkoutData: ShiftCheckoutData) => void;
   presets: ShiftPreset[];
   settings: AppSettings;
 }
@@ -107,15 +108,24 @@ export const EntriesList: React.FC<EntriesListProps> = ({
     let totalDiets = 0;
 
     filteredEntries.forEach(e => {
-      totalHours += e.totalHours || 0;
-      totalKm += e.travel.distanceKm || 0;
-      totalEarnings += e.totalEarnings || 0;
-      totalDiets += e.travel.dietAllowance || 0;
+      totalHours += (Number(e.totalHours) || 0);
+      totalKm += (Number(e.travel?.distanceKm) || 0);
+      totalEarnings += (Number(e.totalEarnings) || 0);
+      totalDiets += (Number(e.travel?.dietAllowance) || 0);
     });
 
-    const avgRate = totalHours > 0 ? Math.round(totalEarnings / totalHours) : 0;
+    // Guard: avoid NaN and division by zero
+    const safeHours = Number.isFinite(totalHours) && totalHours > 0 ? totalHours : 0;
+    const safeEarnings = Number.isFinite(totalEarnings) ? totalEarnings : 0;
+    const avgRate = safeHours > 0 ? Math.round(safeEarnings / safeHours) : 0;
 
-    return { totalHours, totalKm, totalEarnings, totalDiets, avgRate };
+    return {
+      totalHours: safeHours,
+      totalKm: Number.isFinite(totalKm) ? totalKm : 0,
+      totalEarnings: safeEarnings,
+      totalDiets: Number.isFinite(totalDiets) ? totalDiets : 0,
+      avgRate
+    };
   }, [filteredEntries]);
 
   // Status counts
@@ -165,7 +175,7 @@ export const EntriesList: React.FC<EntriesListProps> = ({
             <div className="relative">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'date_desc' | 'date_asc' | 'price_desc')}
                 className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 focus:outline-none focus:border-amber-500"
                 style={{ minHeight: '44px' }}
               >
@@ -331,17 +341,25 @@ export const EntriesList: React.FC<EntriesListProps> = ({
       {/* Entries Cards Feed */}
       <div className="space-y-3">
         {filteredEntries.length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-              <Calendar className="w-6 h-6" />
+          <div className="bg-slate-900 border border-dashed border-slate-700/60 rounded-2xl p-10 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+              <HardHat className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-white">Nebyly nalezeny žádné záznamy směn</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Žádná směna neodpovídá zvoleným filtrům nebo ještě nemáte zapsanou žádnou práci pro toto období.
-            </p>
+            <div className="space-y-1.5">
+              <h3 className="text-base font-black text-white">
+                {selectedStatus !== 'all' || selectedMonth !== 'all' || selectedClient !== 'all' || searchQuery
+                  ? 'Žádné směny neodpovídají filtru'
+                  : 'Zatím tu nic není'}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                {selectedStatus !== 'all' || selectedMonth !== 'all' || selectedClient !== 'all' || searchQuery
+                  ? 'Zkuste změnit nebo resetovat filtry. Nebo přidejte novou směnu pomocí tlačítka níže.'
+                  : 'Přidejte první směnu pomocí tlačítka „Zapsat směnu" nahoře, nebo použijte živý tracker výše.'}
+              </p>
+            </div>
             <button
               onClick={onNewShift}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
               style={{ minHeight: '44px' }}
             >
               <Plus className="w-4 h-4 stroke-[3]" />
@@ -363,3 +381,4 @@ export const EntriesList: React.FC<EntriesListProps> = ({
     </div>
   );
 };
+

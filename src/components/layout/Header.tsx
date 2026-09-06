@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Flame, 
   WifiOff, 
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { exportDatabaseBackupToJSON, importDatabaseBackupFromJSON } from '../../services/exportService';
 import { resetToDemoData } from '../../db';
+import { useToast } from '../../utils/toast';
+import { triggerHaptic } from '../../utils/haptics';
 
 
 interface HeaderProps {
@@ -20,10 +22,9 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entriesCount }) => {
+  const { showToast } = useToast();
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [isDark, setIsDark] = useState<boolean>(true);
   const [showBackupMenu, setShowBackupMenu] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -38,30 +39,28 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
     };
   }, []);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleResetData = async () => {
+  const handleResetData = useCallback(async () => {
     if (window.confirm('Opravdu chcete obnovit výchozí ukázková data svářeče? Všechny úpravy budou přepsány ukázkou.')) {
       await resetToDemoData();
-      showToast('Ukázková data byla úspěšně obnovena');
+      showToast('Ukázková data byla úspěšně obnovena', 'success');
       setShowBackupMenu(false);
+      triggerHaptic('success');
     }
-  };
+  }, [showToast]);
 
-  const handleBackupExport = async () => {
+  const handleBackupExport = useCallback(async () => {
     try {
       await exportDatabaseBackupToJSON();
-      showToast('Kompletní záloha JSON byla stažena');
+      showToast('Kompletní záloha JSON byla stažena ✓', 'success');
       setShowBackupMenu(false);
+      triggerHaptic('success');
     } catch {
-      showToast('Chyba při exportu zálohy');
+      showToast('Chyba při exportu zálohy', 'error');
+      triggerHaptic('error');
     }
-  };
+  }, [showToast]);
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -70,23 +69,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
       const content = event.target?.result as string;
       const success = await importDatabaseBackupFromJSON(content);
       if (success) {
-        showToast('Záloha byla úspěšně nahrána');
+        showToast('Záloha byla úspěšně nahrána ✓', 'success');
+        triggerHaptic('success');
       } else {
-        showToast('Chyba při obnově: neplatný soubor');
+        showToast('Chyba při obnově: neplatný soubor', 'error');
+        triggerHaptic('error');
       }
       setShowBackupMenu(false);
     };
     reader.readAsText(file);
-  };
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    if (!isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+  }, [showToast]);
 
   return (
     <header className="no-print sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 shadow-lg">
@@ -130,6 +122,13 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
             )}
           </div>
 
+          {/* Entry count badge */}
+          {entriesCount > 0 && (
+            <span className="hidden md:flex text-[11px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-2 py-1 rounded-full">
+              {entriesCount} záznamů
+            </span>
+          )}
+
           {/* Backup / Restore Dropdown */}
           <div className="relative">
             <button
@@ -141,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
             </button>
 
             {showBackupMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-slate-850 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-50 text-sm animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-50 text-sm animate-in fade-in zoom-in-95">
                 <div className="px-2 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
                   Data a zálohování
                 </div>
@@ -180,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
 
           {/* New Shift CTA Button (Mobile & Desktop thumb target) */}
           <button
-            onClick={onNewShift}
+            onClick={() => { onNewShift(); triggerHaptic('success'); }}
             className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm tracking-wide"
             style={{ minHeight: '44px' }}
           >
@@ -190,14 +189,6 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           </button>
         </div>
       </div>
-
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-amber-400 border border-amber-500/40 px-4 py-2.5 rounded-xl shadow-2xl text-xs sm:text-sm font-semibold flex items-center gap-2 animate-bounce">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          {toastMessage}
-        </div>
-      )}
     </header>
   );
 };

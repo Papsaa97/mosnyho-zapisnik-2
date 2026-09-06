@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Flame, 
   Wrench, 
@@ -18,6 +18,7 @@ import {
 
 import { WorkEntry, WorkType, WorkEntryStatus } from '../../types';
 import { formatCurrency, formatHours } from '../../services/pricingEngine';
+import { triggerHaptic } from '../../utils/haptics';
 
 interface EntryCardProps {
   entry: WorkEntry;
@@ -287,7 +288,10 @@ export const EntryCard: React.FC<EntryCardProps> = ({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => onUpdateStatus(entry.id, nextStatusMap[entry.status])}
+            onClick={() => {
+              onUpdateStatus(entry.id, nextStatusMap[entry.status]);
+              triggerHaptic('light');
+            }}
             className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 flex items-center gap-1 active:scale-95 transition-all"
             title={nextStatusLabelMap[entry.status]}
           >
@@ -297,7 +301,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
 
           <button
             type="button"
-            onClick={() => onEdit(entry)}
+            onClick={() => { onEdit(entry); triggerHaptic('light'); }}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             title="Upravit záznam"
           >
@@ -306,7 +310,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
 
           <button
             type="button"
-            onClick={() => onDelete(entry.id)}
+            onClick={() => { onDelete(entry.id); triggerHaptic('warning'); }}
             className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
             title="Smazat záznam"
           >
@@ -317,3 +321,4 @@ export const EntryCard: React.FC<EntryCardProps> = ({
     </div>
   );
 };
+

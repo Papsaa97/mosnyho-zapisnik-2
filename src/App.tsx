@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initializeDatabase } from './db';
-import { WorkEntry, WorkEntryStatus, AppSettings, ShiftPreset } from './types';
+import { WorkEntry, WorkEntryStatus, AppSettings, ShiftPreset, ShiftCheckoutData } from './types';
 import { DEFAULT_SETTINGS, DEFAULT_PRESETS } from './db/seedData';
 import { Header } from './components/layout/Header';
 import { Navigation, ActiveTab } from './components/layout/Navigation';
@@ -13,13 +13,16 @@ import { RatesSettingsModal } from './components/settings/RatesSettingsModal';
 import { SmartCheckoutModal } from './components/tracker/SmartCheckoutModal';
 import { useShiftTimer } from './hooks/useShiftTimer';
 import { triggerHaptic } from './utils/haptics';
+import { useToast } from './utils/toast';
 
 export function App() {
+  const { showToast } = useToast();
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('entries');
   const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(false);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
   const [initialFormValues, setInitialFormValues] = useState<Partial<WorkEntry> | null>(null);
-  const [appSmartCheckoutData, setAppSmartCheckoutData] = useState<any>(null);
+  const [appSmartCheckoutData, setAppSmartCheckoutData] = useState<ShiftCheckoutData | null>(null);
 
   // Live Shift Tracker hook with localStorage persistence & haptics
   const shiftTimer = useShiftTimer();
@@ -30,7 +33,7 @@ export function App() {
   }, []);
 
   // Called when Live Tracker finishes shift (direct or via SmartCheckout)
-  const handleFinishLiveShift = (checkoutData: any) => {
+  const handleFinishLiveShift = useCallback((checkoutData: ShiftCheckoutData) => {
     if (!checkoutData) return;
 
     setEditingEntry(null);
@@ -48,9 +51,9 @@ export function App() {
       timeline: checkoutData.events
     });
     setIsShiftModalOpen(true);
-  };
+  }, []);
 
-  const handleAppSmartCheckoutConfirm = (adjusted: {
+  const handleAppSmartCheckoutConfirm = useCallback((adjusted: {
     date: string;
     startTime: string;
     endTime: string;
@@ -61,7 +64,7 @@ export function App() {
     setAppSmartCheckoutData(null);
     if (!data) return;
 
-    const adjustedData = {
+    const adjustedData: ShiftCheckoutData = {
       ...data,
       date: adjusted.date,
       startTime: adjusted.startTime,
@@ -71,9 +74,9 @@ export function App() {
     };
 
     handleFinishLiveShift(adjustedData);
-  };
+  }, [appSmartCheckoutData, handleFinishLiveShift]);
 
-  // Handle PWA shortcuts from URL parameter (?action=start_shift, ?action=end_shift, ?action=toggle_pause, ?action=manual_entry)
+  // Handle PWA shortcuts from URL parameter
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -110,7 +113,7 @@ export function App() {
       // Clear query params without reloading the page
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [shiftTimer]);
+  }, [shiftTimer, handleFinishLiveShift]);
 
   // Reactive queries from IndexedDB
   const entries = useLiveQuery(() => db.entries.toArray(), []) || [];
@@ -119,56 +122,96 @@ export function App() {
   const settings: AppSettings = settingsList[0] || DEFAULT_SETTINGS;
 
   // Count items ready for billing
-  const pendingInvoiceCount = entries.filter(e => e.status === 'submitted').length;
+  const pendingInvoiceCount = useMemo(
+    () => entries.filter(e => e.status === 'submitted').length,
+    [entries]
+  );
 
   // Handlers
-  const handleOpenNewShift = () => {
+  const handleOpenNewShift = useCallback(() => {
     setEditingEntry(null);
     setInitialFormValues(null);
     setIsShiftModalOpen(true);
-  };
+  }, []);
 
-  const handleEditEntry = (entry: WorkEntry) => {
+  const handleEditEntry = useCallback((entry: WorkEntry) => {
     setEditingEntry(entry);
     setInitialFormValues(null);
     setIsShiftModalOpen(true);
-  };
+  }, []);
 
-  const handleSaveEntry = async (entry: WorkEntry) => {
-    await db.entries.put(entry);
-    triggerHaptic('success');
+  const handleSaveEntry = useCallback(async (entry: WorkEntry) => {
+    try {
+      await db.entries.put(entry);
+      triggerHaptic('success');
+      showToast('Směna byla uložena ✓', 'success');
 
-    // If the saved entry came from the currently running live shift, reset the live shift tracker
-    if (shiftTimer.status !== 'idle') {
-      shiftTimer.resetShift();
+      // If the saved entry came from the currently running live shift, reset the live shift tracker
+      if (shiftTimer.status !== 'idle') {
+        shiftTimer.resetShift();
+      }
+    } catch (err) {
+      console.error('Failed to save entry:', err);
+      showToast('Chyba při ukládání záznamu', 'error');
+      triggerHaptic('error');
     }
-  };
+  }, [shiftTimer, showToast]);
 
-  const handleDeleteEntry = async (id: string) => {
+  const handleDeleteEntry = useCallback(async (id: string) => {
     if (window.confirm('Opravdu chcete smazat tento záznam směny?')) {
-      await db.entries.delete(id);
-      triggerHaptic('medium');
+      try {
+        await db.entries.delete(id);
+        triggerHaptic('medium');
+        showToast('Záznam byl smazán', 'warning');
+      } catch (err) {
+        console.error('Failed to delete entry:', err);
+        showToast('Chyba při mazání záznamu', 'error');
+      }
     }
-  };
+  }, [showToast]);
 
-  const handleUpdateStatus = async (id: string, newStatus: WorkEntryStatus) => {
-    await db.entries.update(id, {
-      status: newStatus,
-      updatedAt: new Date().toISOString()
-    });
-    triggerHaptic('light');
-  };
+  const handleUpdateStatus = useCallback(async (id: string, newStatus: WorkEntryStatus) => {
+    try {
+      await db.entries.update(id, {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      triggerHaptic('light');
+      const statusLabels: Record<WorkEntryStatus, string> = {
+        draft: 'Vráceno do konceptu',
+        submitted: 'Označeno jako odevzdáno',
+        invoiced: 'Označeno jako vyfakturováno',
+        paid: 'Označeno jako zaplaceno ✓'
+      };
+      showToast(statusLabels[newStatus] || 'Stav byl aktualizován', 'info');
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      showToast('Chyba při aktualizaci stavu', 'error');
+    }
+  }, [showToast]);
 
-  const handleSaveSettings = async (newSettings: AppSettings) => {
-    await db.settings.put(newSettings);
-  };
+  const handleSaveSettings = useCallback(async (newSettings: AppSettings) => {
+    try {
+      await db.settings.put(newSettings);
+      showToast('Nastavení bylo uloženo ✓', 'success');
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      showToast('Chyba při ukládání nastavení', 'error');
+    }
+  }, [showToast]);
 
-  const handleSavePresets = async (newPresets: ShiftPreset[]) => {
-    await db.transaction('rw', db.presets, async () => {
-      await db.presets.clear();
-      await db.presets.bulkPut(newPresets);
-    });
-  };
+  const handleSavePresets = useCallback(async (newPresets: ShiftPreset[]) => {
+    try {
+      await db.transaction('rw', db.presets, async () => {
+        await db.presets.clear();
+        await db.presets.bulkPut(newPresets);
+      });
+      showToast('Presety byly uloženy ✓', 'success');
+    } catch (err) {
+      console.error('Failed to save presets:', err);
+      showToast('Chyba při ukládání presetů', 'error');
+    }
+  }, [showToast]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">

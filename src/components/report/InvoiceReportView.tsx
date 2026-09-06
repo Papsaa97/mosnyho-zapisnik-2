@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Printer, 
   Download, 
@@ -9,7 +9,8 @@ import {
 import { WorkEntry, AppSettings, ClientProfile } from '../../types';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
-
+import { useToast } from '../../utils/toast';
+import { triggerHaptic } from '../../utils/haptics';
 
 interface InvoiceReportViewProps {
   entries: WorkEntry[];
@@ -20,6 +21,7 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
   entries,
   settings
 }) => {
+  const { showToast } = useToast();
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [showFinancials, setShowFinancials] = useState<boolean>(true); // Hide prices for technical handover if needed
@@ -93,13 +95,17 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
     };
   }, [reportEntries]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = useCallback(() => {
+    triggerHaptic('success');
+    showToast('Spouštím tisk / PDF export...', 'info');
+    setTimeout(() => window.print(), 300);
+  }, [showToast]);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     exportEntriesToCSV(reportEntries, `podklad_${selectedClient}_${activeMonth}`);
-  };
+    triggerHaptic('success');
+    showToast('CSV soubor byl stažen ✓', 'success');
+  }, [reportEntries, selectedClient, activeMonth, showToast]);
 
   const periodLabel = activeMonth === 'all' 
     ? 'Kompletní výkaz' 

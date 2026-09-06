@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ActiveShiftState, 
   ShiftTimelineEvent, 
+  ShiftCheckoutData,
   WorkType, 
   WeldingMethod 
 } from '../types';
@@ -81,7 +82,18 @@ export function useShiftTimer() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(shiftState));
     } catch (e) {
-      console.error('Failed to save active shift to localStorage:', e);
+      if (e instanceof Error && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        console.error('[ShiftTimer] localStorage quota exceeded – active shift state NOT saved!', e);
+        // Try to clear any stale data and retry once
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(shiftState));
+        } catch {
+          console.error('[ShiftTimer] Cannot save shift state – storage is completely full.');
+        }
+      } else {
+        console.error('[ShiftTimer] Failed to save active shift to localStorage:', e);
+      }
     }
   }, [shiftState]);
 
@@ -204,13 +216,15 @@ export function useShiftTimer() {
         try {
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             navigator.serviceWorker.ready.then(reg => {
-              reg.showNotification('⚠️ Nezapomněl sis ukončit směnu?', {
+              // Use NotificationOptions cast – 'renotify' is valid but missing in some TS lib typings
+              const opts: NotificationOptions & { renotify?: boolean } = {
                 body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
                 icon: '/icon-192.svg',
                 badge: '/icon-192.svg',
                 tag: 'shift-10h-reminder',
                 renotify: true
-              } as any);
+              };
+              reg.showNotification('⚠️ Nezapomněl sis ukončit směnu?', opts);
             });
           } else {
             new Notification('⚠️ Nezapomněl sis ukončit směnu?', {
@@ -354,7 +368,7 @@ export function useShiftTimer() {
   }, []);
 
   // Prepare data for ending shift / modal
-  const getShiftCheckoutData = useCallback(() => {
+  const getShiftCheckoutData = useCallback((): ShiftCheckoutData | null => {
     if (!shiftState.startTimestamp) return null;
 
     const startTs = shiftState.startTimestamp;

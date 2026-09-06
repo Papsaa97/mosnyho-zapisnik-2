@@ -3,23 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
-    <link rel="apple-touch-icon" href="/icon-192.svg" />
+
+    <!-- Primary favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#090d16" />
+
+    <!-- iOS PWA: Full screen, status bar, icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/icon-512.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mošný 2.0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Theme colors -->
+    <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#090d16" />
+
+    <!-- SEO & description -->
     <meta name="description" content="Mošnýho zápisník 2.0 – Profesionální montážní a svářečský výkazník pro OSVČ a řemeslníky. 100% Offline-First." />
+    <meta name="application-name" content="Mošnýho zápisník 2.0" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Prevent tap highlight flash on iOS -->
+    <style>
+      * { -webkit-tap-highlight-color: transparent; }
+      /* Safe area insets for iPhone notch / Dynamic Island */
+      body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+
     <title>Mošnýho zápisník 2.0 – Profesionální montážní &amp; svářečský výkazník</title>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Register Service Worker
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.log('ServiceWorker registration optional error:', err);
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            console.log('[App] ServiceWorker registered, scope:', reg.scope);
+          }).catch((err) => {
+            console.log('[App] ServiceWorker registration failed (optional):', err);
           });
         });
       }

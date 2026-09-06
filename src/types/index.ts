@@ -53,6 +53,37 @@ export interface ShiftTimelineEvent {
 
 export type LiveShiftStatus = 'idle' | 'running' | 'paused';
 
+/** Typed checkout data produced by getShiftCheckoutData() */
+export interface ShiftCheckoutData {
+  date: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  startTimestamp: number;
+  isAnomaly: boolean;
+  anomalyReason: string;
+  elapsedHours: number;
+  isWarningLongShift: boolean;
+  isSmartCheckoutRequired: boolean;
+  clientName: string;
+  projectName: string;
+  projectCode: string;
+  workType: WorkType;
+  weldingMethod: WeldingMethod;
+  events: ShiftTimelineEvent[];
+  notes: string;
+}
+
+/** Input validation limits */
+export const INPUT_LIMITS = {
+  MAX_DISTANCE_KM: 1500,      // realistický max za den (Praha–Berlín)
+  MAX_HOURLY_RATE: 50_000,    // absolutní strop Kč/h
+  MAX_BREAK_MINUTES: 480,     // max 8h pauza
+  MAX_MANUAL_TOTAL: 500_000,  // max celková částka za jednu směnu
+  MAX_EXTRA_COST: 200_000,    // max jedna extra položka
+  MAX_TRAVEL_HOURS: 24,       // max 24h cestování
+} as const;
+
 export interface ActiveShiftState {
   status: LiveShiftStatus;
   startTimestamp: number | null; // Date.now() timestamp when shift started
