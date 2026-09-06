@@ -8,7 +8,7 @@
  *  - RUNTIME_CACHE: Dynamic fetched resources – Network-First
  */
 
-const CACHE_VERSION = 'v2.3';
+const CACHE_VERSION = 'v2.4';
 const SHELL_CACHE = `mosny-shell-${CACHE_VERSION}`;
 const FONT_CACHE = `mosny-fonts-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `mosny-runtime-${CACHE_VERSION}`;
@@ -20,8 +20,11 @@ const SHELL_ASSETS = [
   '/manifest.json',
   '/icon-192.svg',
   '/icon-512.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
   '/favicon.svg',
-  '/icons.svg'
+  '/favicon-32.png'
 ];
 
 // Origins to treat as fonts (cache aggressively)

@@ -21,7 +21,6 @@ export interface EntryPricing {
   complexityMultiplier: number;
   shiftSurcharges: ShiftSurchargeType[];
   calculatedHourlyRate: number;
-  manualHourlyRateOverride?: number;
   manualTotalOverride?: number;
   isManualOverride?: boolean;
 }
@@ -67,7 +66,6 @@ export interface ShiftCheckoutData {
   isSmartCheckoutRequired: boolean;
   clientName: string;
   projectName: string;
-  projectCode: string;
   workType: WorkType;
   weldingMethod: WeldingMethod;
   events: ShiftTimelineEvent[];
@@ -92,7 +90,6 @@ export interface ActiveShiftState {
   events: ShiftTimelineEvent[];
   clientName: string;
   projectName: string;
-  projectCode: string;
   workType: WorkType;
   weldingMethod: WeldingMethod;
   notes: string;
@@ -102,7 +99,6 @@ export interface ActiveShiftState {
 export interface WorkEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  projectCode: string;
   projectName: string;
   clientName: string;
   workType: WorkType;
@@ -129,7 +125,6 @@ export interface WorkEntry {
 export interface ShiftPreset {
   id: string;
   name: string;
-  description: string;
   workType: WorkType;
   baseHourlyRate: number;
   complexityMultiplier: number;

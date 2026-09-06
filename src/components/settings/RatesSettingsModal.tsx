@@ -103,7 +103,6 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
     const newP: ShiftPreset = {
       id: `preset-${Date.now()}`,
       name: 'Nová šablona montáže',
-      description: 'Vlastní nastavení prací',
       workType: 'site_assembly',
       baseHourlyRate: 600,
       complexityMultiplier: 1.0,
@@ -253,6 +252,22 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     type="number"
                     value={formData.rates.defaultTravelHourlyRate}
                     onChange={(e) => handleRateChange('defaultTravelHourlyRate', Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
+                    style={{ minHeight: '44px' }}
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/h</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Pouze cesťák (bez montáže/dílny)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={formData.rates.defaultTravelOnlyRate}
+                    onChange={(e) => handleRateChange('defaultTravelOnlyRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />

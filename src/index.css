@@ -1,12 +1,56 @@
 @import "tailwindcss";
 
+@theme {
+  /* Small-phone breakpoint used to hide/show compact button labels */
+  --breakpoint-xs: 30rem;
+}
+
 @layer base {
   body {
     background-color: #090d16;
     color: #f1f5f9;
-    min-height: 100vh;
+    min-height: 100dvh;
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+@layer utilities {
+  /* Thin scrollbars for timelines, kanban columns & filter chip rows */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #475569;
+    border-radius: 9999px;
+  }
+
+  /* Lightweight entrance animations for modals, dropdowns & toasts */
+  @keyframes enter-fade {
+    from { opacity: 0; }
+  }
+  @keyframes enter-zoom-95 {
+    from { transform: scale(0.95); }
+  }
+  @keyframes enter-slide-from-bottom-2 {
+    from { transform: translateY(0.5rem); }
+  }
+  .animate-in {
+    animation-duration: 150ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+  .fade-in { animation-name: enter-fade; }
+  .zoom-in-95 { animation-name: enter-zoom-95, enter-fade; }
+  .slide-in-from-bottom-2 { animation-name: enter-slide-from-bottom-2, enter-fade; }
+  .animate-in.duration-200 { animation-duration: 200ms; }
 }
 
 /* Dedicated Print Styles for clean A4 handover/invoice report */

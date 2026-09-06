@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Flame, 
   Wrench, 
@@ -41,7 +41,7 @@ const STATUS_CONFIG: Record<WorkEntryStatus, { label: string; bg: string; text: 
   paid: { label: 'Zaplaceno', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' }
 };
 
-export const EntryCard: React.FC<EntryCardProps> = ({
+export const EntryCard: React.FC<EntryCardProps> = React.memo(({
   entry,
   onEdit,
   onDelete,
@@ -302,7 +302,8 @@ export const EntryCard: React.FC<EntryCardProps> = ({
           <button
             type="button"
             onClick={() => { onEdit(entry); triggerHaptic('light'); }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
             title="Upravit záznam"
           >
             <Edit3 className="w-4 h-4" />
@@ -311,7 +312,8 @@ export const EntryCard: React.FC<EntryCardProps> = ({
           <button
             type="button"
             onClick={() => { onDelete(entry.id); triggerHaptic('warning'); }}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
             title="Smazat záznam"
           >
             <Trash2 className="w-4 h-4" />
@@ -320,5 +322,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+EntryCard.displayName = 'EntryCard';
 

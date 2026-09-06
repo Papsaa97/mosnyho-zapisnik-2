@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
-  X, 
-  Save, 
-  Clock, 
-  MapPin, 
-  Wrench, 
+  X,
+  Save,
+  Clock,
+  Wrench,
   Flame, 
   Truck, 
   AlertTriangle, 
@@ -54,6 +53,13 @@ interface ShiftModalFormProps {
   existingEntries: WorkEntry[];
 }
 
+const WORK_TYPE_RATE_FIELD: Record<WorkType, keyof AppSettings['rates']> = {
+  workshop_welding: 'defaultWorkshopRate',
+  site_assembly: 'defaultSiteAssemblyRate',
+  service_emergency: 'defaultEmergencyRate',
+  travel_only: 'defaultTravelOnlyRate'
+};
+
 const COMMON_TAGS = [
   'VT2 zkouška OK',
   'Práce v plošině',
@@ -86,9 +92,6 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   // Form State
   const [date, setDate] = useState<string>(
     initialSource ? initialSource.date || new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
-  );
-  const [projectCode, setProjectCode] = useState<string>(
-    initialSource ? initialSource.projectCode || 'Hala-C' : 'Hala-C'
   );
   const [projectName, setProjectName] = useState<string>(
     initialSource ? initialSource.projectName || '' : ''
@@ -155,6 +158,8 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   const [extraCosts, setExtraCosts] = useState<ExtraCostItem[]>(
     editingEntry ? (editingEntry.extraCosts || []) : []
   );
+  const [customExtraDesc, setCustomExtraDesc] = useState<string>('');
+  const [customExtraAmount, setCustomExtraAmount] = useState<number>(0);
   const [notes, setNotes] = useState<string>(
     initialSource ? initialSource.notes || '' : ''
   );
@@ -165,14 +170,13 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     editingEntry ? (editingEntry.invoiceNumber || '') : ''
   );
 
-  // Auto detect weekend when date changes
-  useEffect(() => {
-    if (!editingEntry && isDateWeekend(date)) {
-      if (!shiftSurcharges.includes('weekend')) {
-        setShiftSurcharges(prev => [...prev, 'weekend']);
-      }
+  // Auto detect weekend when the user picks a date (new entries only)
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (!editingEntry && isDateWeekend(newDate)) {
+      setShiftSurcharges(prev => prev.includes('weekend') ? prev : [...prev, 'weekend']);
     }
-  }, [date, editingEntry]);
+  };
 
   // Client suggestions
   const clientSuggestions = useMemo(() => {
@@ -246,6 +250,15 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     }
   };
 
+  // Switch work type & auto-fill its matching default rate (new entries only –
+  // never overwrite a rate the user already saved when editing).
+  const handleWorkTypeChange = (type: WorkType) => {
+    setWorkType(type);
+    if (!editingEntry) {
+      setBaseHourlyRate(settings.rates[WORK_TYPE_RATE_FIELD[type]] as number);
+    }
+  };
+
   // Toggle Surcharge
   const toggleSurcharge = (type: ShiftSurchargeType) => {
     setShiftSurcharges(prev => 
@@ -279,6 +292,14 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
 
   const handleRemoveExtra = (id: string) => {
     setExtraCosts(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleAddCustomExtra = () => {
+    const desc = customExtraDesc.trim();
+    if (!desc || customExtraAmount <= 0) return;
+    handleAddExtra(desc, customExtraAmount);
+    setCustomExtraDesc('');
+    setCustomExtraAmount(0);
   };
 
   // Append note tag
@@ -319,8 +340,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     const entryToSave: WorkEntry = {
       id: editingEntry ? editingEntry.id : `entry-${Date.now()}`,
       date,
-      projectCode: projectCode.trim() || 'Zakázka',
-      projectName: projectName.trim() || (projectCode.trim() || 'Montážní práce'),
+      projectName: projectName.trim() || 'Montážní práce',
       clientName: clientName.trim() || 'Odběratel',
       workType,
       startTime,
@@ -357,7 +377,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     await onSave(entryToSave);
     onClose();
   }, [
-    timeValidationError, editingEntry, date, projectCode, projectName, clientName,
+    timeValidationError, editingEntry, date, projectName, clientName,
     workType, startTime, endTime, breakMinutes, totalHours, baseHourlyRate,
     complexityMultiplier, shiftSurcharges, calculatedHourlyRate, isManualOverride,
     manualTotalOverride, distanceKm, ratePerKm, travelTimeHours, travelHourlyRate,
@@ -376,7 +396,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
         className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden animate-in fade-in zoom-in-95"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-850 bg-slate-900/90 border-b border-slate-800">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900/90 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
               <Flame className="w-5 h-5" />
@@ -392,7 +412,8 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
           >
             <X className="w-5 h-5" />
           </button>
@@ -416,7 +437,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => handleApplyPreset(preset)}
-                  className="flex-shrink-0 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-750 hover:border-amber-500/50 border border-slate-700 text-xs font-semibold rounded-xl text-slate-200 hover:text-amber-300 transition-all flex items-center gap-1.5 active:scale-95"
+                  className="flex-shrink-0 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 hover:border-amber-500/50 border border-slate-700 text-xs font-semibold rounded-xl text-slate-200 hover:text-amber-300 transition-all flex items-center gap-1.5 active:scale-95"
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                   {preset.name}
@@ -437,7 +458,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   required
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                   style={{ minHeight: '44px' }}
@@ -513,7 +534,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     <button
                       key={item.type}
                       type="button"
-                      onClick={() => setWorkType(item.type)}
+                      onClick={() => handleWorkTypeChange(item.type)}
                       className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
                         isSelected
                           ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md font-bold'
@@ -639,7 +660,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     type="number"
                     inputMode="decimal"
                     value={baseHourlyRate}
-                    onChange={(e) => setBaseHourlyRate(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_HOURLY_RATE))}
+                    onChange={(e) => setBaseHourlyRate(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_HOURLY_RATE))}
                     min={0}
                     max={INPUT_LIMITS.MAX_HOURLY_RATE}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
@@ -733,8 +754,10 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                       type="number"
                       inputMode="numeric"
                       value={manualTotalOverride}
-                      onChange={(e) => setManualTotalOverride(Number(e.target.value))}
+                      onChange={(e) => setManualTotalOverride(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_MANUAL_TOTAL))}
                       placeholder="např. 6500"
+                      min={0}
+                      max={INPUT_LIMITS.MAX_MANUAL_TOTAL}
                       className="w-full bg-slate-900 border border-amber-500 rounded-xl px-3 py-2 text-amber-400 font-mono text-base font-bold focus:outline-none"
                     />
                     <span className="absolute right-3 top-2.5 text-xs text-amber-400 font-bold">Kč fixně</span>
@@ -787,7 +810,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     type="number"
                     inputMode="decimal"
                     value={ratePerKm}
-                    onChange={(e) => setRatePerKm(Number(e.target.value))}
+                    onChange={(e) => setRatePerKm(Math.max(0, Number(e.target.value) || 0))}
                     min={0}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
@@ -807,7 +830,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     step="0.5"
                     inputMode="decimal"
                     value={travelTimeHours}
-                    onChange={(e) => setTravelTimeHours(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_TRAVEL_HOURS))}
+                    onChange={(e) => setTravelTimeHours(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_TRAVEL_HOURS))}
                     min={0}
                     max={INPUT_LIMITS.MAX_TRAVEL_HOURS}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
@@ -827,8 +850,9 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     type="number"
                     inputMode="numeric"
                     value={travelHourlyRate}
-                    onChange={(e) => setTravelHourlyRate(Number(e.target.value))}
+                    onChange={(e) => setTravelHourlyRate(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_HOURLY_RATE))}
                     min={0}
+                    max={INPUT_LIMITS.MAX_HOURLY_RATE}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
                     style={{ minHeight: '44px' }}
                   />
@@ -891,6 +915,31 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                   Celodenní ({settings.rates.dietFullDayRate} Kč)
                 </button>
               </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <span className="text-[11px] font-semibold text-slate-400 flex-shrink-0">Vlastní částka:</span>
+                <div className="relative flex-1 max-w-[140px]">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={dietAllowance}
+                    onChange={(e) => {
+                      const val = Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_EXTRA_COST);
+                      setDietAllowance(val);
+                      setDietType(
+                        val === settings.rates.dietHalfDayRate ? 'half_day' :
+                        val === settings.rates.dietFullDayRate ? 'full_day' :
+                        val === 0 ? 'none' : 'custom'
+                      );
+                    }}
+                    min={0}
+                    max={INPUT_LIMITS.MAX_EXTRA_COST}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs font-bold focus:border-amber-500 focus:outline-none"
+                    style={{ minHeight: '38px' }}
+                  />
+                  <span className="absolute right-2.5 top-2 text-[10px] text-slate-400">Kč</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -919,6 +968,44 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                   {c.description.split('(')[0]} ({c.amount} Kč)
                 </button>
               ))}
+            </div>
+
+            {/* Custom (non-preset) material or cost line */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={customExtraDesc}
+                onChange={(e) => setCustomExtraDesc(e.target.value)}
+                placeholder="Vlastní položka (např. pronájem plošiny)"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-medium focus:border-amber-500 focus:outline-none"
+                style={{ minHeight: '44px' }}
+              />
+              <div className="flex gap-2">
+                <div className="relative flex-1 sm:w-32">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={customExtraAmount || ''}
+                    onChange={(e) => setCustomExtraAmount(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_EXTRA_COST))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomExtra(); } }}
+                    placeholder="Kč"
+                    min={0}
+                    max={INPUT_LIMITS.MAX_EXTRA_COST}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs font-bold focus:border-amber-500 focus:outline-none"
+                    style={{ minHeight: '44px' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddCustomExtra}
+                  disabled={!customExtraDesc.trim() || customExtraAmount <= 0}
+                  className="px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700 text-amber-400 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors"
+                  style={{ minHeight: '44px' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Přidat</span>
+                </button>
+              </div>
             </div>
 
             {/* Added Items List */}

@@ -13,7 +13,12 @@ import { RatesSettingsModal } from './components/settings/RatesSettingsModal';
 import { SmartCheckoutModal } from './components/tracker/SmartCheckoutModal';
 import { useShiftTimer } from './hooks/useShiftTimer';
 import { triggerHaptic } from './utils/haptics';
-import { useToast } from './utils/toast';
+import { useToast } from './utils/toastContext';
+
+// Stable references so useLiveQuery's "not loaded yet" fallback doesn't
+// produce a brand-new array on every render (which would defeat useMemo).
+const EMPTY_ENTRIES: WorkEntry[] = [];
+const EMPTY_SETTINGS_LIST: AppSettings[] = [];
 
 export function App() {
   const { showToast } = useToast();
@@ -44,7 +49,6 @@ export function App() {
       breakMinutes: checkoutData.breakMinutes,
       clientName: checkoutData.clientName,
       projectName: checkoutData.projectName,
-      projectCode: checkoutData.projectCode,
       workType: checkoutData.workType,
       weldingMethod: checkoutData.weldingMethod,
       notes: checkoutData.notes,
@@ -76,7 +80,10 @@ export function App() {
     handleFinishLiveShift(adjustedData);
   }, [appSmartCheckoutData, handleFinishLiveShift]);
 
-  // Handle PWA shortcuts from URL parameter
+  // Handle PWA shortcuts from URL parameter. This synchronizes with an
+  // external system (the launch URL set by the home-screen shortcuts) right
+  // after mount – it can't be an event handler since no user action fires it.
+  // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -91,7 +98,8 @@ export function App() {
         if (shiftTimer.status !== 'idle') {
           const data = shiftTimer.getShiftCheckoutData();
           if (data) {
-            if (shiftTimer.isSmartCheckoutRequired || data.elapsedHours >= 16 || data.isAnomaly) {
+            if (data.isAnomaly) {
+              // oxlint-disable-next-line react/set-state-in-effect
               setAppSmartCheckoutData(data);
             } else {
               handleFinishLiveShift(data);
@@ -116,9 +124,9 @@ export function App() {
   }, [shiftTimer, handleFinishLiveShift]);
 
   // Reactive queries from IndexedDB
-  const entries = useLiveQuery(() => db.entries.toArray(), []) || [];
+  const entries = useLiveQuery(() => db.entries.toArray(), []) || EMPTY_ENTRIES;
   const presets = useLiveQuery(() => db.presets.toArray(), []) || DEFAULT_PRESETS;
-  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || [];
+  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || EMPTY_SETTINGS_LIST;
   const settings: AppSettings = settingsList[0] || DEFAULT_SETTINGS;
 
   // Count items ready for billing
@@ -214,11 +222,10 @@ export function App() {
   }, [showToast]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       {/* Top Header */}
       <Header
         onNewShift={handleOpenNewShift}
-        onOpenSettings={() => setActiveTab('settings')}
         entriesCount={entries.length}
       />
 

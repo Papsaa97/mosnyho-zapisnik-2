@@ -1,15 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { 
-  Printer, 
-  Download, 
-  Eye, 
-  EyeOff,
-  Edit3
+import {
+  Printer,
+  Download,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { WorkEntry, AppSettings, ClientProfile } from '../../types';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
-import { useToast } from '../../utils/toast';
+import { useToast } from '../../utils/toastContext';
 import { triggerHaptic } from '../../utils/haptics';
 
 interface InvoiceReportViewProps {
