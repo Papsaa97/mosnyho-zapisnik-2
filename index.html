@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="cs" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#090d16" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Mošnýho zápisník 2.0 – Profesionální montážní a svářečský výkazník pro OSVČ a řemeslníky. 100% Offline-First." />
+    <title>Mošnýho zápisník 2.0 – Profesionální montážní &amp; svářečský výkazník</title>
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('ServiceWorker registration optional error:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
