@@ -18,7 +18,6 @@ const DEFAULT_STATE: ActiveShiftState = {
   events: [],
   clientName: '',
   projectName: '',
-  projectCode: '',
   workType: 'site_assembly',
   weldingMethod: 'TIG',
   notes: '',
@@ -74,7 +73,7 @@ export function useShiftTimer() {
     return DEFAULT_STATE;
   });
 
-  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
   const timerRef = useRef<number | null>(null);
 
   // Sync with localStorage on every change
@@ -171,21 +170,21 @@ export function useShiftTimer() {
     const netWork = Math.max(0, elapsed - totalPause);
     const hours = elapsed / (1000 * 60 * 60);
 
-    // Anomaly checks
+    // Anomaly checks – based purely on elapsed duration. A shift crossing
+    // midnight is completely normal for night/emergency work (see the
+    // 'night' surcharge) and must NOT alone flag a false "forgotten shift"
+    // alert – only genuinely long shifts should trigger Smart Checkout.
     const isOver14Hours = hours >= 14;
     const isOver16Hours = hours >= 16;
-    const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
-    const anomaly = isOver14Hours || isOvernight;
+    const hasCrossedMidnight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
 
     let reason = '';
-    if (isOver16Hours && isOvernight) {
+    if (isOver16Hours && hasCrossedMidnight) {
       reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
     } else if (isOver16Hours) {
       reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
     } else if (isOver14Hours) {
       reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
-    } else if (isOvernight) {
-      reason = 'Směna začala včera a stále běží!';
     }
 
     return {
@@ -194,14 +193,17 @@ export function useShiftTimer() {
       netWorkedMs: netWork,
       currentPauseDurationMs: activePause,
       isWarningLongShift: isOver14Hours,
-      isSmartCheckoutRequired: isOver16Hours || isOvernight,
-      isAnomaly: anomaly,
+      isSmartCheckoutRequired: isOver16Hours,
+      isAnomaly: isOver14Hours,
       anomalyReason: reason,
       elapsedHours: hours
     };
   })();
 
-  // 10-hour Local Notification reminder check
+  // 10-hour Local Notification reminder check. This synchronizes with the
+  // passage of wall-clock time (elapsedHours ticking up) and fires an
+  // external Notification exactly once – there is no discrete user event to
+  // hook this off, so an effect (not an event handler) is the correct tool.
   useEffect(() => {
     if (
       (shiftState.status === 'running' || shiftState.status === 'paused') &&
@@ -209,6 +211,7 @@ export function useShiftTimer() {
       !shiftState.notifiedTenHours
     ) {
       // Mark as notified so we don't repeat endlessly
+      // oxlint-disable-next-line react/set-state-in-effect
       setShiftState(prev => ({ ...prev, notifiedTenHours: true }));
 
       // Trigger notification if permitted
@@ -218,7 +221,7 @@ export function useShiftTimer() {
             navigator.serviceWorker.ready.then(reg => {
               // Use NotificationOptions cast – 'renotify' is valid but missing in some TS lib typings
               const opts: NotificationOptions & { renotify?: boolean } = {
-                body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
+                body: `Mošnyho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
                 icon: '/icon-192.svg',
                 badge: '/icon-192.svg',
                 tag: 'shift-10h-reminder',
@@ -228,7 +231,7 @@ export function useShiftTimer() {
             });
           } else {
             new Notification('⚠️ Nezapomněl sis ukončit směnu?', {
-              body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
+              body: `Mošnyho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
               icon: '/icon-192.svg'
             });
           }
@@ -243,7 +246,6 @@ export function useShiftTimer() {
   const startShift = useCallback((options?: {
     clientName?: string;
     projectName?: string;
-    projectCode?: string;
     workType?: WorkType;
     weldingMethod?: WeldingMethod;
   }) => {
@@ -267,7 +269,6 @@ export function useShiftTimer() {
       events: [startEvent],
       clientName: options?.clientName || 'Metrostav DIZ s.r.o.',
       projectName: options?.projectName || 'Montáž ocelových konstrukcí',
-      projectCode: options?.projectCode || 'Hala-C',
       workType: options?.workType || 'site_assembly',
       weldingMethod: options?.weldingMethod || 'TIG',
       notes: '',
@@ -407,7 +408,6 @@ export function useShiftTimer() {
       isSmartCheckoutRequired,
       clientName: shiftState.clientName,
       projectName: shiftState.projectName,
-      projectCode: shiftState.projectCode,
       workType: shiftState.workType,
       weldingMethod: shiftState.weldingMethod,
       events: shiftState.events,

@@ -6,16 +6,17 @@
 
     <!-- Primary favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- iOS PWA: Full screen, status bar, icon -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.svg" />
-    <link rel="apple-touch-icon" href="/icon-512.svg" />
+    <!-- iOS PWA: Full screen, status bar, icon. iOS Safari requires a raster
+         (PNG) apple-touch-icon – it does not reliably render SVG here. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Mošný 2.0" />
+    <meta name="apple-mobile-web-app-title" content="Mošny 2.0" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- Theme colors -->
@@ -23,8 +24,8 @@
     <meta name="theme-color" content="#090d16" />
 
     <!-- SEO & description -->
-    <meta name="description" content="Mošnýho zápisník 2.0 – Profesionální montážní a svářečský výkazník pro OSVČ a řemeslníky. 100% Offline-First." />
-    <meta name="application-name" content="Mošnýho zápisník 2.0" />
+    <meta name="description" content="Mošnyho zápisník 2.0 – Profesionální montážní a svářečský výkazník pro OSVČ a řemeslníky. 100% Offline-First." />
+    <meta name="application-name" content="Mošnyho zápisník 2.0" />
     <meta name="format-detection" content="telephone=no" />
 
     <!-- Prevent tap highlight flash on iOS -->
@@ -34,7 +35,7 @@
       body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
     </style>
 
-    <title>Mošnýho zápisník 2.0 – Profesionální montážní &amp; svářečský výkazník</title>
+    <title>Mošnyho zápisník 2.0 – Profesionální montážní &amp; svářečský výkazník</title>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased min-h-screen">
     <div id="root"></div>

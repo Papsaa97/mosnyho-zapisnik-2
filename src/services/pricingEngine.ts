@@ -43,16 +43,11 @@ export function calculateEffectiveHourlyRate(
   baseRate: number,
   multiplier: number,
   surcharges: ShiftSurchargeType[],
-  surchargeConfig: SurchargeConfig,
-  manualHourlyRateOverride?: number
+  surchargeConfig: SurchargeConfig
 ): number {
-  if (manualHourlyRateOverride !== undefined && manualHourlyRateOverride > 0) {
-    return manualHourlyRateOverride;
-  }
-
-  const safeBase = Number(baseRate) || 0;
+  const safeBase = Math.max(0, Number(baseRate) || 0);
   const safeMult = Number(multiplier) > 0 ? Number(multiplier) : 1.0;
-  let rateWithMultiplier = safeBase * safeMult;
+  const rateWithMultiplier = safeBase * safeMult;
 
   if (surchargeConfig.useFixedBonus) {
     let bonus = 0;
@@ -77,7 +72,7 @@ export function calculateEffectiveHourlyRate(
  */
 export function calculateExtraCostsTotal(extraCosts: ExtraCostItem[]): number {
   if (!Array.isArray(extraCosts)) return 0;
-  return extraCosts.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  return extraCosts.reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0), 0);
 }
 
 /**
@@ -90,9 +85,9 @@ export function calculateTravelTotal(
   travelHourlyRate: number,
   dietAllowance: number
 ): number {
-  const kmCost = (Number(distanceKm) || 0) * (Number(ratePerKm) || 0);
-  const timeCost = (Number(travelTimeHours) || 0) * (Number(travelHourlyRate) || 0);
-  const diet = Number(dietAllowance) || 0;
+  const kmCost = Math.max(0, Number(distanceKm) || 0) * Math.max(0, Number(ratePerKm) || 0);
+  const timeCost = Math.max(0, Number(travelTimeHours) || 0) * Math.max(0, Number(travelHourlyRate) || 0);
+  const diet = Math.max(0, Number(dietAllowance) || 0);
   return Math.round((kmCost + timeCost + diet) * 100) / 100;
 }
 

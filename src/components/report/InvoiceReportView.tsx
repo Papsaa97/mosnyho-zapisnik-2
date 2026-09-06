@@ -1,31 +1,43 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { 
-  Printer, 
-  Download, 
-  Eye, 
-  EyeOff,
-  Edit3
+import {
+  Printer,
+  Download,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { WorkEntry, AppSettings, ClientProfile } from '../../types';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
-import { useToast } from '../../utils/toast';
+import { getNextDocumentNumber } from '../../services/documentNumbering';
+import { useToast } from '../../utils/toastContext';
 import { triggerHaptic } from '../../utils/haptics';
 
 interface InvoiceReportViewProps {
   entries: WorkEntry[];
   settings: AppSettings;
+  onSaveSettings: (settings: AppSettings) => Promise<void>;
 }
 
 export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
   entries,
-  settings
+  settings,
+  onSaveSettings
 }) => {
   const { showToast } = useToast();
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [showFinancials, setShowFinancials] = useState<boolean>(true); // Hide prices for technical handover if needed
-  const [protocolNumber, setProtocolNumber] = useState<string>(`PR-${new Date().getFullYear()}/${(new Date().getMonth() + 1).toString().padStart(2, '0')}-01`);
+  // Auto-detect the next protocol number from the highest one issued so far this year
+  const [protocolNumber, setProtocolNumber] = useState<string>(
+    () => getNextDocumentNumber('PR', new Date().getFullYear(), [settings.lastProtocolNumber])
+  );
+
+  // Persist the just-used protocol number so the next report defaults to +1
+  const recordIssuedProtocolNumber = useCallback(() => {
+    if (protocolNumber.trim() && protocolNumber !== settings.lastProtocolNumber) {
+      onSaveSettings({ ...settings, lastProtocolNumber: protocolNumber.trim() });
+    }
+  }, [protocolNumber, settings, onSaveSettings]);
 
   // Distinct clients
   const availableClients = useMemo(() => {
@@ -98,14 +110,16 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
   const handlePrint = useCallback(() => {
     triggerHaptic('success');
     showToast('Spouštím tisk / PDF export...', 'info');
+    recordIssuedProtocolNumber();
     setTimeout(() => window.print(), 300);
-  }, [showToast]);
+  }, [showToast, recordIssuedProtocolNumber]);
 
   const handleExportCSV = useCallback(() => {
     exportEntriesToCSV(reportEntries, `podklad_${selectedClient}_${activeMonth}`);
     triggerHaptic('success');
     showToast('CSV soubor byl stažen ✓', 'success');
-  }, [reportEntries, selectedClient, activeMonth, showToast]);
+    recordIssuedProtocolNumber();
+  }, [reportEntries, selectedClient, activeMonth, showToast, recordIssuedProtocolNumber]);
 
   const periodLabel = activeMonth === 'all' 
     ? 'Kompletní výkaz' 
@@ -227,7 +241,7 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
 
         {/* Contractor & Client Info Box */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-          {/* Dodavatel (Jan Mošný) */}
+          {/* Dodavatel (Kryštof Mošner) */}
           <div className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block border-b border-slate-200 pb-1 mb-1">
               ZHOTOVITEL (DODAVATEL / OSVČ)

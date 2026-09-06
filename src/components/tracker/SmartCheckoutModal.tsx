@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { calculateNetHours } from '../../services/pricingEngine';
 import { triggerHaptic } from '../../utils/haptics';
+import { INPUT_LIMITS } from '../../types';
 
 interface SmartCheckoutModalProps {
   isOpen: boolean;
@@ -156,10 +157,11 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
         
         {/* Warning Header */}
         <div className="bg-gradient-to-r from-amber-600/30 via-rose-600/30 to-amber-600/30 p-5 border-b border-amber-500/40 relative">
-          <button 
+          <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
             title="Zavřít"
           >
             <X className="w-5 h-5" />
@@ -197,7 +199,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
             <button
               type="button"
               onClick={handleQuickEnd16}
-              className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-755 border border-slate-700 hover:border-amber-500/60 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
+              className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500/60 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
               style={{ minHeight: '56px' }}
             >
               <div className="flex items-center gap-3">
@@ -220,7 +222,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
             <button
               type="button"
               onClick={handleQuickEnd18}
-              className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-755 border border-slate-700 hover:border-amber-500/60 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
+              className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500/60 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
               style={{ minHeight: '56px' }}
             >
               <div className="flex items-center gap-3">
@@ -249,7 +251,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
               className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between active:scale-[0.99] ${
                 showManualPicker
                   ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                  : 'bg-slate-800 hover:bg-slate-755 border-slate-700 text-white'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white'
               }`}
               style={{ minHeight: '56px' }}
             >
@@ -330,7 +332,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
                         min="0"
                         step="5"
                         value={breakMinutes}
-                        onChange={(e) => setBreakMinutes(Number(e.target.value) || 0)}
+                        onChange={(e) => setBreakMinutes(Math.min(Math.max(0, Number(e.target.value) || 0), INPUT_LIMITS.MAX_BREAK_MINUTES))}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-amber-500 text-center"
                         style={{ minHeight: '44px' }}
                       />
@@ -374,7 +376,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
             <button
               type="button"
               onClick={handleSaveWithoutChange}
-              className="w-full p-3.5 rounded-2xl bg-slate-850/80 hover:bg-slate-800 border border-slate-700/80 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
+              className="w-full p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-left transition-all flex items-center justify-between group active:scale-[0.99]"
               style={{ minHeight: '52px' }}
             >
               <div className="flex items-center gap-3">

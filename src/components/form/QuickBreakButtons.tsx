@@ -1,5 +1,6 @@
 import React from 'react';
 import { Coffee, Plus, Minus } from 'lucide-react';
+import { INPUT_LIMITS } from '../../types';
 
 interface QuickBreakButtonsProps {
   value: number;
@@ -54,8 +55,9 @@ export const QuickBreakButtons: React.FC<QuickBreakButtonsProps> = ({ value, onC
         </button>
         <button
           type="button"
-          onClick={() => onChange(value + 5)}
-          className="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 border border-slate-700"
+          onClick={() => onChange(Math.min(INPUT_LIMITS.MAX_BREAK_MINUTES, value + 5))}
+          disabled={value >= INPUT_LIMITS.MAX_BREAK_MINUTES}
+          className="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 flex items-center gap-1 border border-slate-700"
         >
           <Plus className="w-3 h-3" /> 5 min
         </button>

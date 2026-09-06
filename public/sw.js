@@ -1,5 +1,5 @@
 /**
- * Mošnýho zápisník 2.0 – Service Worker
+ * Mošnyho zápisník 2.0 – Service Worker
  * Strategy: Cache-First for static assets, Network-First for API, offline fallback
  * 
  * Cache buckets:
@@ -8,7 +8,7 @@
  *  - RUNTIME_CACHE: Dynamic fetched resources – Network-First
  */
 
-const CACHE_VERSION = 'v2.3';
+const CACHE_VERSION = 'v2.4';
 const SHELL_CACHE = `mosny-shell-${CACHE_VERSION}`;
 const FONT_CACHE = `mosny-fonts-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `mosny-runtime-${CACHE_VERSION}`;
@@ -20,8 +20,11 @@ const SHELL_ASSETS = [
   '/manifest.json',
   '/icon-192.svg',
   '/icon-512.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
   '/favicon.svg',
-  '/icons.svg'
+  '/favicon-32.png'
 ];
 
 // Origins to treat as fonts (cache aggressively)
@@ -129,7 +132,7 @@ self.addEventListener('fetch', (event) => {
           }
           // Return meaningful offline response
           return new Response(
-            '<html><body style="font-family:sans-serif;padding:40px;background:#090d16;color:#f1f5f9"><h2>⚡ Mošnýho zápisník</h2><p>Aplikace běží offline. Všechna data jsou uložena lokálně.</p></body></html>',
+            '<html><body style="font-family:sans-serif;padding:40px;background:#090d16;color:#f1f5f9"><h2>⚡ Mošnyho zápisník</h2><p>Aplikace běží offline. Všechna data jsou uložena lokálně.</p></body></html>',
             { headers: { 'Content-Type': 'text/html' }, status: 200 }
           );
         }
@@ -181,7 +184,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_SHIFT_REMINDER') {
     const title = event.data.title || '⚠️ Nezapomněl sis ukončit směnu?';
     const options = {
-      body: event.data.body || 'Mošnýho zápisník: Směna běží už dlouho. Nezapomeň ji ukončit!',
+      body: event.data.body || 'Mošnyho zápisník: Směna běží už dlouho. Nezapomeň ji ukončit!',
       icon: '/icon-192.svg',
       badge: '/icon-192.svg',
       tag: 'shift-reminder-anti-forget',

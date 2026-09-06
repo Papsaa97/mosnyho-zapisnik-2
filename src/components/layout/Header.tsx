@@ -11,17 +11,16 @@ import {
 } from 'lucide-react';
 import { exportDatabaseBackupToJSON, importDatabaseBackupFromJSON } from '../../services/exportService';
 import { resetToDemoData } from '../../db';
-import { useToast } from '../../utils/toast';
+import { useToast } from '../../utils/toastContext';
 import { triggerHaptic } from '../../utils/haptics';
 
 
 interface HeaderProps {
   onNewShift: () => void;
-  onOpenSettings: () => void;
   entriesCount: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entriesCount }) => {
+export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
   const { showToast } = useToast();
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [showBackupMenu, setShowBackupMenu] = useState<boolean>(false);
@@ -91,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
-                MOŠNÝHO ZÁPISNÍK
+                MOŠNYHO ZÁPISNÍK
                 <span className="text-xs bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">
                   2.0 PRO
                 </span>
@@ -133,7 +132,8 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           <div className="relative">
             <button
               onClick={() => setShowBackupMenu(!showBackupMenu)}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors flex items-center justify-center"
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Správa dat a záloha"
             >
               <Database className="w-4 h-4 text-amber-400" />

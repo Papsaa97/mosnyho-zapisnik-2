@@ -15,6 +15,13 @@ export class MosnyDatabase extends Dexie {
       presets: 'id, name, workType, isDefault',
       settings: 'id'
     });
+
+    // v2: dropped the unused projectCode index (field removed from WorkEntry)
+    this.version(2).stores({
+      entries: 'id, date, clientName, status, workType, createdAt',
+      presets: 'id, name, workType, isDefault',
+      settings: 'id'
+    });
   }
 }
 
