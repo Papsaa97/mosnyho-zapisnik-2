@@ -60,7 +60,7 @@ export function formatTimestampToDate(timestamp: number): string {
   return `${year}-${month}-${day}`;
 }
 
-export function useShiftTimer() {
+export function useShiftTimer(anomalyLimitHours: number = 16) {
   const [shiftState, setShiftState] = useState<ActiveShiftState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -174,8 +174,8 @@ export function useShiftTimer() {
     // midnight is completely normal for night/emergency work (see the
     // 'night' surcharge) and must NOT alone flag a false "forgotten shift"
     // alert – only genuinely long shifts should trigger Smart Checkout.
-    const isOver14Hours = hours >= 14;
-    const isOver16Hours = hours >= 16;
+    const isOver14Hours = hours >= anomalyLimitHours - 2;
+    const isOver16Hours = hours >= anomalyLimitHours;
     const hasCrossedMidnight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
 
     let reason = '';

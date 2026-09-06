@@ -34,6 +34,13 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
   const [localPresets, setLocalPresets] = useState<ShiftPreset[]>(presets);
   const [savedAlert, setSavedAlert] = useState<boolean>(false);
 
+  const handleSettingsChange = (field: keyof AppSettings, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const handleRateChange = (field: keyof AppSettings['rates'], value: number) => {
     setFormData(prev => ({
       ...prev,
@@ -400,6 +407,22 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Limit pro upozornění na zapomenutou směnu (h)
+                </label>
+                <div className="relative mb-4">
+                  <input
+                    type="number"
+                    min={8}
+                    max={24}
+                    value={formData.shiftAnomalyLimitHours || 16}
+                    onChange={(e) => handleSettingsChange('shiftAnomalyLimitHours', Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                    style={{ minHeight: '44px' }}
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Sazba za 1 km jízdy dodávkou

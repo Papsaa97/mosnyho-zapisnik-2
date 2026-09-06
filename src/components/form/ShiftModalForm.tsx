@@ -417,7 +417,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="shift-modal-title"
-        className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden animate-in fade-in zoom-in-95"
+        className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col max-h-[94dvh] overflow-hidden animate-in fade-in zoom-in-95"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900/90 border-b border-slate-800">

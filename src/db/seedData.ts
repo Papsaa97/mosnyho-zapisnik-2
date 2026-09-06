@@ -83,7 +83,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     { id: 'mat_anchors', name: 'Kotevní materiál / svorníky M16', unitPrice: 800, unit: 'bal' }
   ],
   darkMode: true,
-  currencySymbol: 'Kč'
+  currencySymbol: 'Kč',
+  shiftAnomalyLimitHours: 16
 };
 
 export const DEFAULT_PRESETS: ShiftPreset[] = [
