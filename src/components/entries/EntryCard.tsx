@@ -236,6 +236,31 @@ export const EntryCard: React.FC<EntryCardProps> = ({
               </div>
             </div>
           )}
+
+          {/* Timeline Events if any */}
+          {entry.timeline && entry.timeline.length > 0 && (
+            <div className="p-2.5 bg-slate-950/40 rounded-xl border border-slate-800">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-amber-400" />
+                Zaznamenaná časová osa ({entry.timeline.length} událostí):
+              </span>
+              <div className="space-y-1.5">
+                {entry.timeline.map((evt) => (
+                  <div key={evt.id} className="flex items-start gap-2 text-xs">
+                    <span className="font-mono text-amber-400 font-bold text-[11px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                      {evt.timeStr}
+                    </span>
+                    <div>
+                      <span className="text-slate-200 font-semibold">{evt.title}</span>
+                      {evt.description && (
+                        <span className="text-slate-400 text-[11px] ml-1.5">({evt.description})</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

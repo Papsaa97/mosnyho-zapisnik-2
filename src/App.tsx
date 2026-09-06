@@ -10,16 +10,50 @@ import { ShiftModalForm } from './components/form/ShiftModalForm';
 import { InvoiceReportView } from './components/report/InvoiceReportView';
 import { StatsDashboard } from './components/dashboard/StatsDashboard';
 import { RatesSettingsModal } from './components/settings/RatesSettingsModal';
+import { useShiftTimer } from './hooks/useShiftTimer';
+import { triggerHaptic } from './utils/haptics';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('entries');
   const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(false);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
+  const [initialFormValues, setInitialFormValues] = useState<Partial<WorkEntry> | null>(null);
+
+  // Live Shift Tracker hook with localStorage persistence & haptics
+  const shiftTimer = useShiftTimer();
 
   // Initialize DB once on start
   useEffect(() => {
     initializeDatabase();
   }, []);
+
+  // Handle PWA shortcuts from URL parameter (?action=start_shift, ?action=toggle_pause, ?action=manual_entry)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+
+    if (action) {
+      if (action === 'start_shift') {
+        if (shiftTimer.status === 'idle') {
+          shiftTimer.startShift();
+        }
+      } else if (action === 'toggle_pause') {
+        if (shiftTimer.status === 'running') {
+          shiftTimer.pauseShift();
+        } else if (shiftTimer.status === 'paused') {
+          shiftTimer.resumeShift();
+        }
+      } else if (action === 'manual_entry') {
+        setEditingEntry(null);
+        setInitialFormValues(null);
+        setIsShiftModalOpen(true);
+      }
+
+      // Clear query params without reloading the page
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [shiftTimer]);
 
   // Reactive queries from IndexedDB
   const entries = useLiveQuery(() => db.entries.toArray(), []) || [];
@@ -33,21 +67,51 @@ export function App() {
   // Handlers
   const handleOpenNewShift = () => {
     setEditingEntry(null);
+    setInitialFormValues(null);
     setIsShiftModalOpen(true);
   };
 
   const handleEditEntry = (entry: WorkEntry) => {
     setEditingEntry(entry);
+    setInitialFormValues(null);
+    setIsShiftModalOpen(true);
+  };
+
+  // Called when Live Tracker finishes shift (direct or via SmartCheckout)
+  const handleFinishLiveShift = (checkoutData: any) => {
+    if (!checkoutData) return;
+
+    setEditingEntry(null);
+    setInitialFormValues({
+      date: checkoutData.date,
+      startTime: checkoutData.startTime,
+      endTime: checkoutData.endTime,
+      breakMinutes: checkoutData.breakMinutes,
+      clientName: checkoutData.clientName,
+      projectName: checkoutData.projectName,
+      projectCode: checkoutData.projectCode,
+      workType: checkoutData.workType,
+      weldingMethod: checkoutData.weldingMethod,
+      notes: checkoutData.notes,
+      timeline: checkoutData.events
+    });
     setIsShiftModalOpen(true);
   };
 
   const handleSaveEntry = async (entry: WorkEntry) => {
     await db.entries.put(entry);
+    triggerHaptic('success');
+
+    // If the saved entry came from the currently running live shift, reset the live shift tracker
+    if (shiftTimer.status !== 'idle') {
+      shiftTimer.resetShift();
+    }
   };
 
   const handleDeleteEntry = async (id: string) => {
     if (window.confirm('Opravdu chcete smazat tento záznam směny?')) {
       await db.entries.delete(id);
+      triggerHaptic('medium');
     }
   };
 
@@ -56,6 +120,7 @@ export function App() {
       status: newStatus,
       updatedAt: new Date().toISOString()
     });
+    triggerHaptic('light');
   };
 
   const handleSaveSettings = async (newSettings: AppSettings) => {
@@ -94,6 +159,10 @@ export function App() {
             onEdit={handleEditEntry}
             onDelete={handleDeleteEntry}
             onUpdateStatus={handleUpdateStatus}
+            timer={shiftTimer}
+            onFinishLiveShift={handleFinishLiveShift}
+            presets={presets}
+            settings={settings}
           />
         )}
 
@@ -129,9 +198,11 @@ export function App() {
           onClose={() => {
             setIsShiftModalOpen(false);
             setEditingEntry(null);
+            setInitialFormValues(null);
           }}
           onSave={handleSaveEntry}
           editingEntry={editingEntry}
+          initialValues={initialFormValues}
           presets={presets}
           settings={settings}
           existingEntries={entries}

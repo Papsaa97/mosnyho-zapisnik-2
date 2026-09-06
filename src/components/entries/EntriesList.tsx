@@ -7,11 +7,12 @@ import {
   Plus, 
   Building2
 } from 'lucide-react';
-import { WorkEntry, WorkEntryStatus } from '../../types';
+import { WorkEntry, WorkEntryStatus, ShiftPreset, AppSettings } from '../../types';
 import { EntryCard } from './EntryCard';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
-
+import { LiveTrackerPanel } from '../tracker/LiveTrackerPanel';
+import { useShiftTimer } from '../../hooks/useShiftTimer';
 
 interface EntriesListProps {
   entries: WorkEntry[];
@@ -19,6 +20,10 @@ interface EntriesListProps {
   onEdit: (entry: WorkEntry) => void;
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: WorkEntryStatus) => void;
+  timer: ReturnType<typeof useShiftTimer>;
+  onFinishLiveShift: (checkoutData: any) => void;
+  presets: ShiftPreset[];
+  settings: AppSettings;
 }
 
 export const EntriesList: React.FC<EntriesListProps> = ({
@@ -26,7 +31,11 @@ export const EntriesList: React.FC<EntriesListProps> = ({
   onNewShift,
   onEdit,
   onDelete,
-  onUpdateStatus
+  onUpdateStatus,
+  timer,
+  onFinishLiveShift,
+  presets,
+  settings
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
@@ -126,6 +135,14 @@ export const EntriesList: React.FC<EntriesListProps> = ({
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-24 md:pb-12">
+      {/* Dominant Live Shift Tracker Panel */}
+      <LiveTrackerPanel
+        timer={timer}
+        onFinishShift={onFinishLiveShift}
+        onOpenManualEntry={onNewShift}
+        presets={presets}
+        settings={settings}
+      />
       
       {/* Top Filter & Search Controls */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3.5">

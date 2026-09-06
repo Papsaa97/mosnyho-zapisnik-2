@@ -47,6 +47,7 @@ interface ShiftModalFormProps {
   onClose: () => void;
   onSave: (entry: WorkEntry) => Promise<void>;
   editingEntry?: WorkEntry | null;
+  initialValues?: Partial<WorkEntry> | null;
   presets: ShiftPreset[];
   settings: AppSettings;
   existingEntries: WorkEntry[];
@@ -74,41 +75,42 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   onClose,
   onSave,
   editingEntry,
+  initialValues,
   presets,
   settings,
   existingEntries
 }) => {
-  if (!isOpen) return null;
+  const initialSource = editingEntry || initialValues;
 
   // Form State
   const [date, setDate] = useState<string>(
-    editingEntry ? editingEntry.date : new Date().toISOString().slice(0, 10)
+    initialSource ? initialSource.date || new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
   );
   const [projectCode, setProjectCode] = useState<string>(
-    editingEntry ? editingEntry.projectCode : 'Hala-C'
+    initialSource ? initialSource.projectCode || 'Hala-C' : 'Hala-C'
   );
   const [projectName, setProjectName] = useState<string>(
-    editingEntry ? editingEntry.projectName : ''
+    initialSource ? initialSource.projectName || '' : ''
   );
   const [clientName, setClientName] = useState<string>(
-    editingEntry ? editingEntry.clientName : (settings.clients[0]?.name || 'Metrostav DIZ s.r.o.')
+    initialSource ? initialSource.clientName || (settings.clients[0]?.name || 'Metrostav DIZ s.r.o.') : (settings.clients[0]?.name || 'Metrostav DIZ s.r.o.')
   );
   const [workType, setWorkType] = useState<WorkType>(
-    editingEntry ? editingEntry.workType : 'site_assembly'
+    initialSource ? initialSource.workType || 'site_assembly' : 'site_assembly'
   );
   const [weldingMethod, setWeldingMethod] = useState<WeldingMethod>(
-    editingEntry ? (editingEntry.weldingMethod || 'TIG') : 'TIG'
+    initialSource ? (initialSource.weldingMethod || 'TIG') : 'TIG'
   );
 
   // Time
   const [startTime, setStartTime] = useState<string>(
-    editingEntry ? editingEntry.startTime : '07:00'
+    initialSource ? initialSource.startTime || '07:00' : '07:00'
   );
   const [endTime, setEndTime] = useState<string>(
-    editingEntry ? editingEntry.endTime : '16:00'
+    initialSource ? initialSource.endTime || '16:00' : '16:00'
   );
   const [breakMinutes, setBreakMinutes] = useState<number>(
-    editingEntry ? editingEntry.breakMinutes : 30
+    initialSource && initialSource.breakMinutes !== undefined ? initialSource.breakMinutes : 30
   );
 
   // Pricing
@@ -153,7 +155,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     editingEntry ? (editingEntry.extraCosts || []) : []
   );
   const [notes, setNotes] = useState<string>(
-    editingEntry ? editingEntry.notes : ''
+    initialSource ? initialSource.notes || '' : ''
   );
   const [status, setStatus] = useState<WorkEntryStatus>(
     editingEntry ? editingEntry.status : 'draft'
@@ -319,6 +321,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
       status,
       notes: notes.trim(),
       weldingMethod,
+      timeline: editingEntry?.timeline || initialValues?.timeline,
       invoiceNumber: invoiceNumber.trim() || undefined,
       createdAt: editingEntry ? editingEntry.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -327,6 +330,8 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     await onSave(entryToSave);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">

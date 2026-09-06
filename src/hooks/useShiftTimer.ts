@@ -1,0 +1,410 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  ActiveShiftState, 
+  ShiftTimelineEvent, 
+  WorkType, 
+  WeldingMethod 
+} from '../types';
+import { triggerHaptic } from '../utils/haptics';
+
+const STORAGE_KEY = 'mosny_active_shift_v2';
+
+const DEFAULT_STATE: ActiveShiftState = {
+  status: 'idle',
+  startTimestamp: null,
+  currentPauseStart: null,
+  totalPausedMs: 0,
+  events: [],
+  clientName: '',
+  projectName: '',
+  projectCode: '',
+  workType: 'site_assembly',
+  weldingMethod: 'TIG',
+  notes: '',
+  notifiedTenHours: false
+};
+
+function formatDigits(num: number): string {
+  return num < 10 ? `0${num}` : `${num}`;
+}
+
+export function formatDurationMs(ms: number): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  display: string;
+} {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return {
+    hours,
+    minutes,
+    seconds,
+    display: `${formatDigits(hours)}:${formatDigits(minutes)}:${formatDigits(seconds)}`
+  };
+}
+
+export function formatTimestampToTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${formatDigits(date.getHours())}:${formatDigits(date.getMinutes())}`;
+}
+
+export function formatTimestampToDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = formatDigits(date.getMonth() + 1);
+  const day = formatDigits(date.getDate());
+  return `${year}-${month}-${day}`;
+}
+
+export function useShiftTimer() {
+  const [shiftState, setShiftState] = useState<ActiveShiftState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse active shift from localStorage:', e);
+    }
+    return DEFAULT_STATE;
+  });
+
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const timerRef = useRef<number | null>(null);
+
+  // Sync with localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(shiftState));
+    } catch (e) {
+      console.error('Failed to save active shift to localStorage:', e);
+    }
+  }, [shiftState]);
+
+  // Interval ticker to update clock every 1 second when shift is not idle
+  useEffect(() => {
+    if (shiftState.status !== 'idle') {
+      timerRef.current = window.setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [shiftState.status]);
+
+  // Compute live elapsed times
+  const {
+    totalElapsedMs,
+    pausedMs,
+    netWorkedMs,
+    currentPauseDurationMs,
+    isAnomaly,
+    anomalyReason,
+    elapsedHours
+  } = (() => {
+    if (shiftState.status === 'idle' || !shiftState.startTimestamp) {
+      return {
+        totalElapsedMs: 0,
+        pausedMs: 0,
+        netWorkedMs: 0,
+        currentPauseDurationMs: 0,
+        isAnomaly: false,
+        anomalyReason: '',
+        elapsedHours: 0
+      };
+    }
+
+    const elapsed = Math.max(0, currentTime - shiftState.startTimestamp);
+    const activePause = shiftState.status === 'paused' && shiftState.currentPauseStart
+      ? Math.max(0, currentTime - shiftState.currentPauseStart)
+      : 0;
+
+    const totalPause = shiftState.totalPausedMs + activePause;
+    const netWork = Math.max(0, elapsed - totalPause);
+    const hours = elapsed / (1000 * 60 * 60);
+
+    // Anomaly checks
+    const isOver14Hours = hours >= 14;
+    const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
+    const anomaly = isOver14Hours || isOvernight;
+
+    let reason = '';
+    if (isOver14Hours && isOvernight) {
+      reason = `Běží ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
+    } else if (isOver14Hours) {
+      reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
+    } else if (isOvernight) {
+      reason = 'Směna začala včera a stále běží!';
+    }
+
+    return {
+      totalElapsedMs: elapsed,
+      pausedMs: totalPause,
+      netWorkedMs: netWork,
+      currentPauseDurationMs: activePause,
+      isAnomaly: anomaly,
+      anomalyReason: reason,
+      elapsedHours: hours
+    };
+  })();
+
+  // 10-hour Local Notification reminder check
+  useEffect(() => {
+    if (
+      (shiftState.status === 'running' || shiftState.status === 'paused') &&
+      elapsedHours >= 10 &&
+      !shiftState.notifiedTenHours
+    ) {
+      // Mark as notified so we don't repeat endlessly
+      setShiftState(prev => ({ ...prev, notifiedTenHours: true }));
+
+      // Trigger notification if permitted
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification('⚠️ Nezapomněl sis ukončit směnu?', {
+                body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
+                icon: '/icon-192.svg',
+                badge: '/icon-192.svg',
+                tag: 'shift-10h-reminder',
+                renotify: true
+              } as any);
+            });
+          } else {
+            new Notification('⚠️ Nezapomněl sis ukončit směnu?', {
+              body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
+              icon: '/icon-192.svg'
+            });
+          }
+        } catch (e) {
+          console.warn('Could not display 10h reminder notification:', e);
+        }
+      }
+    }
+  }, [shiftState.status, elapsedHours, shiftState.notifiedTenHours]);
+
+  // Action: Start Shift
+  const startShift = useCallback((options?: {
+    clientName?: string;
+    projectName?: string;
+    projectCode?: string;
+    workType?: WorkType;
+    weldingMethod?: WeldingMethod;
+  }) => {
+    const now = Date.now();
+    const timeStr = formatTimestampToTime(now);
+
+    const startEvent: ShiftTimelineEvent = {
+      id: `evt-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: now,
+      timeStr,
+      type: 'shift_start',
+      title: 'Start směny',
+      description: options?.projectName ? `Zahájení na projektu: ${options.projectName}` : 'Zahájení směny na pracovišti'
+    };
+
+    setShiftState({
+      status: 'running',
+      startTimestamp: now,
+      currentPauseStart: null,
+      totalPausedMs: 0,
+      events: [startEvent],
+      clientName: options?.clientName || 'Metrostav DIZ s.r.o.',
+      projectName: options?.projectName || 'Montáž ocelových konstrukcí',
+      projectCode: options?.projectCode || 'Hala-C',
+      workType: options?.workType || 'site_assembly',
+      weldingMethod: options?.weldingMethod || 'TIG',
+      notes: '',
+      notifiedTenHours: false
+    });
+
+    setCurrentTime(now);
+    triggerHaptic('success');
+  }, []);
+
+  // Action: Pause Shift
+  const pauseShift = useCallback(() => {
+    if (shiftState.status !== 'running') return;
+    const now = Date.now();
+    const timeStr = formatTimestampToTime(now);
+
+    const pauseEvent: ShiftTimelineEvent = {
+      id: `evt-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: now,
+      timeStr,
+      type: 'pause_start',
+      title: 'Začátek pauzy',
+      description: 'Oběd / odpočinek / čekání na materiál'
+    };
+
+    setShiftState(prev => ({
+      ...prev,
+      status: 'paused',
+      currentPauseStart: now,
+      events: [...prev.events, pauseEvent]
+    }));
+
+    setCurrentTime(now);
+    triggerHaptic('warning');
+  }, [shiftState.status]);
+
+  // Action: Resume Shift
+  const resumeShift = useCallback(() => {
+    if (shiftState.status !== 'paused' || !shiftState.currentPauseStart) return;
+    const now = Date.now();
+    const timeStr = formatTimestampToTime(now);
+    const pauseDurationMs = Math.max(0, now - shiftState.currentPauseStart);
+    const pauseMinutes = Math.round(pauseDurationMs / 60000);
+
+    const resumeEvent: ShiftTimelineEvent = {
+      id: `evt-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: now,
+      timeStr,
+      type: 'pause_end',
+      title: 'Konec pauzy',
+      description: `Pauza trvala ${pauseMinutes} minut`
+    };
+
+    setShiftState(prev => ({
+      ...prev,
+      status: 'running',
+      currentPauseStart: null,
+      totalPausedMs: prev.totalPausedMs + pauseDurationMs,
+      events: [...prev.events, resumeEvent]
+    }));
+
+    setCurrentTime(now);
+    triggerHaptic('success');
+  }, [shiftState.status, shiftState.currentPauseStart]);
+
+  // Action: Add Note to Timeline
+  const addTimelineNote = useCallback((noteText: string) => {
+    if (!noteText.trim()) return;
+    const now = Date.now();
+    const timeStr = formatTimestampToTime(now);
+
+    const noteEvent: ShiftTimelineEvent = {
+      id: `evt-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: now,
+      timeStr,
+      type: 'note',
+      title: 'Poznámka z terénu',
+      description: noteText.trim()
+    };
+
+    setShiftState(prev => {
+      const updatedNotes = prev.notes 
+        ? `${prev.notes}\n[${timeStr}] ${noteText.trim()}`
+        : `[${timeStr}] ${noteText.trim()}`;
+      return {
+        ...prev,
+        notes: updatedNotes,
+        events: [...prev.events, noteEvent]
+      };
+    });
+
+    triggerHaptic('light');
+  }, []);
+
+  // Update metadata (client, project, workType, etc.) while running
+  const updateMetadata = useCallback((data: Partial<ActiveShiftState>) => {
+    setShiftState(prev => ({ ...prev, ...data }));
+  }, []);
+
+  // Prepare data for ending shift / modal
+  const getShiftCheckoutData = useCallback(() => {
+    if (!shiftState.startTimestamp) return null;
+
+    const startTs = shiftState.startTimestamp;
+    const now = Date.now();
+
+    // If currently paused, accumulate the current pause into total paused
+    let totalPause = shiftState.totalPausedMs;
+    if (shiftState.status === 'paused' && shiftState.currentPauseStart) {
+      totalPause += (now - shiftState.currentPauseStart);
+    }
+
+    const breakMinutes = Math.round(totalPause / 60000);
+    const startDate = formatTimestampToDate(startTs);
+    const startTime = formatTimestampToTime(startTs);
+    const endTime = formatTimestampToTime(now);
+
+    // Build timeline summary text for notes
+    const timelineSummary = shiftState.events
+      .map(e => `${e.timeStr} - ${e.title}${e.description ? ` (${e.description})` : ''}`)
+      .join(' | ');
+
+    const combinedNotes = shiftState.notes 
+      ? `${shiftState.notes}\n\nČasová osa:\n${timelineSummary}`
+      : `Časová osa:\n${timelineSummary}`;
+
+    return {
+      date: startDate,
+      startTime,
+      endTime,
+      breakMinutes,
+      isAnomaly,
+      anomalyReason,
+      elapsedHours,
+      clientName: shiftState.clientName,
+      projectName: shiftState.projectName,
+      projectCode: shiftState.projectCode,
+      workType: shiftState.workType,
+      weldingMethod: shiftState.weldingMethod,
+      events: shiftState.events,
+      notes: combinedNotes
+    };
+  }, [shiftState, isAnomaly, anomalyReason, elapsedHours]);
+
+  // Reset shift to idle (after saving or explicit discard)
+  const resetShift = useCallback(() => {
+    setShiftState(DEFAULT_STATE);
+    localStorage.removeItem(STORAGE_KEY);
+    triggerHaptic('medium');
+  }, []);
+
+  // Request notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = await Notification.requestPermission();
+      triggerHaptic(permission === 'granted' ? 'success' : 'light');
+      return permission;
+    }
+    return 'denied';
+  }, []);
+
+  return {
+    shiftState,
+    status: shiftState.status,
+    totalElapsedMs,
+    pausedMs,
+    netWorkedMs,
+    currentPauseDurationMs,
+    isAnomaly,
+    anomalyReason,
+    elapsedHours,
+    startShift,
+    pauseShift,
+    resumeShift,
+    addTimelineNote,
+    updateMetadata,
+    getShiftCheckoutData,
+    resetShift,
+    requestNotificationPermission
+  };
+}

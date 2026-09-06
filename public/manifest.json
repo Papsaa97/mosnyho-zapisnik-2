@@ -20,5 +20,43 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Zahájit směnu",
+      "short_name": "Zahájit",
+      "description": "Okamžitě spustit stopky pro novou směnu",
+      "url": "/?action=start_shift",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Zadat rychlou pauzu",
+      "short_name": "Pauza",
+      "description": "Pozastavit nebo obnovit běžící směnu",
+      "url": "/?action=toggle_pause",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Zapsat směnu zpětně",
+      "short_name": "Manuální zápis",
+      "description": "Otevřít formulář pro manuální zápis směny",
+      "url": "/?action=manual_entry",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

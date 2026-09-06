@@ -35,6 +35,39 @@ export interface EntryTravel {
   dietType?: 'none' | 'half_day' | 'full_day' | 'custom';
 }
 
+export type ShiftEventType = 
+  | 'shift_start' 
+  | 'pause_start' 
+  | 'pause_end' 
+  | 'shift_end' 
+  | 'note';
+
+export interface ShiftTimelineEvent {
+  id: string;
+  timestamp: number; // Date.now()
+  timeStr: string; // "07:00"
+  type: ShiftEventType;
+  title: string;
+  description?: string;
+}
+
+export type LiveShiftStatus = 'idle' | 'running' | 'paused';
+
+export interface ActiveShiftState {
+  status: LiveShiftStatus;
+  startTimestamp: number | null; // Date.now() timestamp when shift started
+  currentPauseStart: number | null; // Date.now() when current pause started
+  totalPausedMs: number; // accumulated completed pause duration in ms
+  events: ShiftTimelineEvent[];
+  clientName: string;
+  projectName: string;
+  projectCode: string;
+  workType: WorkType;
+  weldingMethod: WeldingMethod;
+  notes: string;
+  notifiedTenHours?: boolean;
+}
+
 export interface WorkEntry {
   id: string;
   date: string; // YYYY-MM-DD
@@ -53,6 +86,7 @@ export interface WorkEntry {
   status: WorkEntryStatus;
   notes: string;
   weldingMethod?: WeldingMethod;
+  timeline?: ShiftTimelineEvent[];
   invoiceNumber?: string;
   invoiceDate?: string;
   paymentDueDate?: string;
