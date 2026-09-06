@@ -106,12 +106,32 @@ export function useShiftTimer() {
     };
   }, [shiftState.status]);
 
-  // Compute live elapsed times
+  // iOS Safari Background Sync: when app wakes up or tab becomes visible again,
+  // JS timers may have been frozen. Immediately sync clock with Date.now()
+  useEffect(() => {
+    const handleSync = () => {
+      setCurrentTime(Date.now());
+    };
+
+    document.addEventListener('visibilitychange', handleSync);
+    window.addEventListener('pageshow', handleSync);
+    window.addEventListener('focus', handleSync);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleSync);
+      window.removeEventListener('pageshow', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, []);
+
+  // Compute live elapsed times: strictly calculated as Date.now() - startTime - pausedTime
   const {
     totalElapsedMs,
     pausedMs,
     netWorkedMs,
     currentPauseDurationMs,
+    isWarningLongShift,
+    isSmartCheckoutRequired,
     isAnomaly,
     anomalyReason,
     elapsedHours
@@ -122,6 +142,8 @@ export function useShiftTimer() {
         pausedMs: 0,
         netWorkedMs: 0,
         currentPauseDurationMs: 0,
+        isWarningLongShift: false,
+        isSmartCheckoutRequired: false,
         isAnomaly: false,
         anomalyReason: '',
         elapsedHours: 0
@@ -139,14 +161,17 @@ export function useShiftTimer() {
 
     // Anomaly checks
     const isOver14Hours = hours >= 14;
+    const isOver16Hours = hours >= 16;
     const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
     const anomaly = isOver14Hours || isOvernight;
 
     let reason = '';
-    if (isOver14Hours && isOvernight) {
-      reason = `Běží ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
-    } else if (isOver14Hours) {
+    if (isOver16Hours && isOvernight) {
+      reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
+    } else if (isOver16Hours) {
       reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
+    } else if (isOver14Hours) {
+      reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
     } else if (isOvernight) {
       reason = 'Směna začala včera a stále běží!';
     }
@@ -156,6 +181,8 @@ export function useShiftTimer() {
       pausedMs: totalPause,
       netWorkedMs: netWork,
       currentPauseDurationMs: activePause,
+      isWarningLongShift: isOver14Hours,
+      isSmartCheckoutRequired: isOver16Hours || isOvernight,
       isAnomaly: anomaly,
       anomalyReason: reason,
       elapsedHours: hours
@@ -358,9 +385,12 @@ export function useShiftTimer() {
       startTime,
       endTime,
       breakMinutes,
+      startTimestamp: startTs,
       isAnomaly,
       anomalyReason,
       elapsedHours,
+      isWarningLongShift,
+      isSmartCheckoutRequired,
       clientName: shiftState.clientName,
       projectName: shiftState.projectName,
       projectCode: shiftState.projectCode,
@@ -369,7 +399,7 @@ export function useShiftTimer() {
       events: shiftState.events,
       notes: combinedNotes
     };
-  }, [shiftState, isAnomaly, anomalyReason, elapsedHours]);
+  }, [shiftState, isAnomaly, anomalyReason, elapsedHours, isWarningLongShift, isSmartCheckoutRequired]);
 
   // Reset shift to idle (after saving or explicit discard)
   const resetShift = useCallback(() => {
@@ -395,6 +425,8 @@ export function useShiftTimer() {
     pausedMs,
     netWorkedMs,
     currentPauseDurationMs,
+    isWarningLongShift,
+    isSmartCheckoutRequired,
     isAnomaly,
     anomalyReason,
     elapsedHours,

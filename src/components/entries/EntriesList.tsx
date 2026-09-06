@@ -11,7 +11,7 @@ import { WorkEntry, WorkEntryStatus, ShiftPreset, AppSettings } from '../../type
 import { EntryCard } from './EntryCard';
 import { formatCurrency } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
-import { LiveTrackerPanel } from '../tracker/LiveTrackerPanel';
+import { SmartShiftTracker } from '../tracker/SmartShiftTracker';
 import { useShiftTimer } from '../../hooks/useShiftTimer';
 
 interface EntriesListProps {
@@ -135,8 +135,8 @@ export const EntriesList: React.FC<EntriesListProps> = ({
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-24 md:pb-12">
-      {/* Dominant Live Shift Tracker Panel */}
-      <LiveTrackerPanel
+      {/* Dominant Smart Shift Tracker Panel */}
+      <SmartShiftTracker
         timer={timer}
         onFinishShift={onFinishLiveShift}
         onOpenManualEntry={onNewShift}

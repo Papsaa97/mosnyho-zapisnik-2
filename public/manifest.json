@@ -23,9 +23,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Zahájit směnu",
-      "short_name": "Zahájit",
-      "description": "Okamžitě spustit stopky pro novou směnu",
+      "name": "Začít směnu",
+      "short_name": "Začít",
+      "description": "Okamžitě spustit stopky pro dnešní směnu",
       "url": "/?action=start_shift",
       "icons": [
         {
@@ -35,9 +35,21 @@
       ]
     },
     {
-      "name": "Zadat rychlou pauzu",
+      "name": "Konec směny",
+      "short_name": "Konec",
+      "description": "Ukončit běžící směnu a zapsat odpracovaný čas",
+      "url": "/?action=end_shift",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Přerušit / Pauza",
       "short_name": "Pauza",
-      "description": "Pozastavit nebo obnovit běžící směnu",
+      "description": "Pozastavit nebo obnovit běžící směnu (oběd / přejezd)",
       "url": "/?action=toggle_pause",
       "icons": [
         {

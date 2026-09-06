@@ -10,6 +10,7 @@ import { ShiftModalForm } from './components/form/ShiftModalForm';
 import { InvoiceReportView } from './components/report/InvoiceReportView';
 import { StatsDashboard } from './components/dashboard/StatsDashboard';
 import { RatesSettingsModal } from './components/settings/RatesSettingsModal';
+import { SmartCheckoutModal } from './components/tracker/SmartCheckoutModal';
 import { useShiftTimer } from './hooks/useShiftTimer';
 import { triggerHaptic } from './utils/haptics';
 
@@ -18,6 +19,7 @@ export function App() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(false);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
   const [initialFormValues, setInitialFormValues] = useState<Partial<WorkEntry> | null>(null);
+  const [appSmartCheckoutData, setAppSmartCheckoutData] = useState<any>(null);
 
   // Live Shift Tracker hook with localStorage persistence & haptics
   const shiftTimer = useShiftTimer();
@@ -27,7 +29,51 @@ export function App() {
     initializeDatabase();
   }, []);
 
-  // Handle PWA shortcuts from URL parameter (?action=start_shift, ?action=toggle_pause, ?action=manual_entry)
+  // Called when Live Tracker finishes shift (direct or via SmartCheckout)
+  const handleFinishLiveShift = (checkoutData: any) => {
+    if (!checkoutData) return;
+
+    setEditingEntry(null);
+    setInitialFormValues({
+      date: checkoutData.date,
+      startTime: checkoutData.startTime,
+      endTime: checkoutData.endTime,
+      breakMinutes: checkoutData.breakMinutes,
+      clientName: checkoutData.clientName,
+      projectName: checkoutData.projectName,
+      projectCode: checkoutData.projectCode,
+      workType: checkoutData.workType,
+      weldingMethod: checkoutData.weldingMethod,
+      notes: checkoutData.notes,
+      timeline: checkoutData.events
+    });
+    setIsShiftModalOpen(true);
+  };
+
+  const handleAppSmartCheckoutConfirm = (adjusted: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    breakMinutes: number;
+    correctionNote: string;
+  }) => {
+    const data = appSmartCheckoutData;
+    setAppSmartCheckoutData(null);
+    if (!data) return;
+
+    const adjustedData = {
+      ...data,
+      date: adjusted.date,
+      startTime: adjusted.startTime,
+      endTime: adjusted.endTime,
+      breakMinutes: adjusted.breakMinutes,
+      notes: `${data.notes}\n\n${adjusted.correctionNote}`
+    };
+
+    handleFinishLiveShift(adjustedData);
+  };
+
+  // Handle PWA shortcuts from URL parameter (?action=start_shift, ?action=end_shift, ?action=toggle_pause, ?action=manual_entry)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -37,6 +83,17 @@ export function App() {
       if (action === 'start_shift') {
         if (shiftTimer.status === 'idle') {
           shiftTimer.startShift();
+        }
+      } else if (action === 'end_shift') {
+        if (shiftTimer.status !== 'idle') {
+          const data = shiftTimer.getShiftCheckoutData();
+          if (data) {
+            if (shiftTimer.isSmartCheckoutRequired || data.elapsedHours >= 16 || data.isAnomaly) {
+              setAppSmartCheckoutData(data);
+            } else {
+              handleFinishLiveShift(data);
+            }
+          }
         }
       } else if (action === 'toggle_pause') {
         if (shiftTimer.status === 'running') {
@@ -74,27 +131,6 @@ export function App() {
   const handleEditEntry = (entry: WorkEntry) => {
     setEditingEntry(entry);
     setInitialFormValues(null);
-    setIsShiftModalOpen(true);
-  };
-
-  // Called when Live Tracker finishes shift (direct or via SmartCheckout)
-  const handleFinishLiveShift = (checkoutData: any) => {
-    if (!checkoutData) return;
-
-    setEditingEntry(null);
-    setInitialFormValues({
-      date: checkoutData.date,
-      startTime: checkoutData.startTime,
-      endTime: checkoutData.endTime,
-      breakMinutes: checkoutData.breakMinutes,
-      clientName: checkoutData.clientName,
-      projectName: checkoutData.projectName,
-      projectCode: checkoutData.projectCode,
-      workType: checkoutData.workType,
-      weldingMethod: checkoutData.weldingMethod,
-      notes: checkoutData.notes,
-      timeline: checkoutData.events
-    });
     setIsShiftModalOpen(true);
   };
 
@@ -206,6 +242,20 @@ export function App() {
           presets={presets}
           settings={settings}
           existingEntries={entries}
+        />
+      )}
+
+      {/* Smart Checkout Modal triggered by shortcut or global end_shift */}
+      {appSmartCheckoutData && (
+        <SmartCheckoutModal
+          isOpen={Boolean(appSmartCheckoutData)}
+          onClose={() => setAppSmartCheckoutData(null)}
+          data={appSmartCheckoutData}
+          onConfirmAdjusted={handleAppSmartCheckoutConfirm}
+          onDiscardShift={() => {
+            setAppSmartCheckoutData(null);
+            shiftTimer.resetShift();
+          }}
         />
       )}
     </div>
