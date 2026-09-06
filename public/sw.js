@@ -1,5 +1,5 @@
 /**
- * Mošnýho zápisník 2.0 – Service Worker
+ * Mošnyho zápisník 2.0 – Service Worker
  * Strategy: Cache-First for static assets, Network-First for API, offline fallback
  * 
  * Cache buckets:
@@ -132,7 +132,7 @@ self.addEventListener('fetch', (event) => {
           }
           // Return meaningful offline response
           return new Response(
-            '<html><body style="font-family:sans-serif;padding:40px;background:#090d16;color:#f1f5f9"><h2>⚡ Mošnýho zápisník</h2><p>Aplikace běží offline. Všechna data jsou uložena lokálně.</p></body></html>',
+            '<html><body style="font-family:sans-serif;padding:40px;background:#090d16;color:#f1f5f9"><h2>⚡ Mošnyho zápisník</h2><p>Aplikace běží offline. Všechna data jsou uložena lokálně.</p></body></html>',
             { headers: { 'Content-Type': 'text/html' }, status: 200 }
           );
         }
@@ -184,7 +184,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_SHIFT_REMINDER') {
     const title = event.data.title || '⚠️ Nezapomněl sis ukončit směnu?';
     const options = {
-      body: event.data.body || 'Mošnýho zápisník: Směna běží už dlouho. Nezapomeň ji ukončit!',
+      body: event.data.body || 'Mošnyho zápisník: Směna běží už dlouho. Nezapomeň ji ukončit!',
       icon: '/icon-192.svg',
       badge: '/icon-192.svg',
       tag: 'shift-reminder-anti-forget',

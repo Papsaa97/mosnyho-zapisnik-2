@@ -90,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
-                MOŠNÝHO ZÁPISNÍK
+                MOŠNYHO ZÁPISNÍK
                 <span className="text-xs bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">
                   2.0 PRO
                 </span>

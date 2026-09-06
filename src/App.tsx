@@ -127,7 +127,22 @@ export function App() {
   const entries = useLiveQuery(() => db.entries.toArray(), []) || EMPTY_ENTRIES;
   const presets = useLiveQuery(() => db.presets.toArray(), []) || DEFAULT_PRESETS;
   const settingsList = useLiveQuery(() => db.settings.toArray(), []) || EMPTY_SETTINGS_LIST;
-  const settings: AppSettings = settingsList[0] || DEFAULT_SETTINGS;
+  // Merge over DEFAULT_SETTINGS so fields added in later app versions
+  // (e.g. materialCatalog) are backfilled for settings saved before they existed.
+  const settings: AppSettings = useMemo(() => {
+    const stored = settingsList[0];
+    if (!stored) return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      rates: {
+        ...DEFAULT_SETTINGS.rates,
+        ...stored.rates,
+        surcharges: { ...DEFAULT_SETTINGS.rates.surcharges, ...stored.rates?.surcharges }
+      },
+      contractor: { ...DEFAULT_SETTINGS.contractor, ...stored.contractor }
+    };
+  }, [settingsList]);
 
   // Count items ready for billing
   const pendingInvoiceCount = useMemo(
@@ -256,6 +271,7 @@ export function App() {
           <InvoiceReportView
             entries={entries}
             settings={settings}
+            onSaveSettings={handleSaveSettings}
           />
         )}
 

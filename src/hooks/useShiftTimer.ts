@@ -221,7 +221,7 @@ export function useShiftTimer() {
             navigator.serviceWorker.ready.then(reg => {
               // Use NotificationOptions cast – 'renotify' is valid but missing in some TS lib typings
               const opts: NotificationOptions & { renotify?: boolean } = {
-                body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
+                body: `Mošnyho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
                 icon: '/icon-192.svg',
                 badge: '/icon-192.svg',
                 tag: 'shift-10h-reminder',
@@ -231,7 +231,7 @@ export function useShiftTimer() {
             });
           } else {
             new Notification('⚠️ Nezapomněl sis ukončit směnu?', {
-              body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
+              body: `Mošnyho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
               icon: '/icon-192.svg'
             });
           }

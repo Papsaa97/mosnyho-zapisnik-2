@@ -2,7 +2,7 @@
   "name": "mosnyho-zapisnik-pwa",
   "private": true,
   "version": "2.0.0",
-  "description": "Mošnýho zápisník 2.0 – Profesionální montážní & svářečský výkazník",
+  "description": "Mošnyho zápisník 2.0 – Profesionální montážní & svářečský výkazník",
   "type": "module",
   "scripts": {
     "dev": "vite",

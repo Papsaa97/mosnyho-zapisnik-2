@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  SlidersHorizontal, 
-  DollarSign, 
-  Car, 
-  User, 
-  Plus, 
-  Trash2, 
-  Save, 
-  Check, 
+import {
+  SlidersHorizontal,
+  DollarSign,
+  Car,
+  User,
+  Plus,
+  Trash2,
+  Save,
+  Check,
   Sparkles,
-  Building2
+  Building2,
+  Layers
 } from 'lucide-react';
-import { AppSettings, ShiftPreset, ClientProfile } from '../../types';
+import { AppSettings, ShiftPreset, ClientProfile, MaterialCatalogItem } from '../../types';
 
+const CATALOG_UNITS = ['ks', 'bal', 'm', 'kg', 'hod'];
 
 interface RatesSettingsModalProps {
   settings: AppSettings;
@@ -27,7 +29,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
   onSaveSettings,
   onSavePresets
 }) => {
-  const [activeTab, setActiveTab] = useState<'rates' | 'contractor' | 'presets' | 'clients'>('rates');
+  const [activeTab, setActiveTab] = useState<'rates' | 'contractor' | 'presets' | 'catalog' | 'clients'>('rates');
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [localPresets, setLocalPresets] = useState<ShiftPreset[]>(presets);
   const [savedAlert, setSavedAlert] = useState<boolean>(false);
@@ -119,6 +121,34 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
     setLocalPresets(prev => prev.filter(p => p.id !== id));
   };
 
+  // Material catalog operations (Argon, dráty, kotouče, vícepráce...)
+  const handleAddCatalogItem = () => {
+    const newItem: MaterialCatalogItem = {
+      id: `mat-${Date.now()}`,
+      name: 'Nová položka',
+      unitPrice: 0,
+      unit: 'ks'
+    };
+    setFormData(prev => ({
+      ...prev,
+      materialCatalog: [...prev.materialCatalog, newItem]
+    }));
+  };
+
+  const handleUpdateCatalogItem = (id: string, field: keyof MaterialCatalogItem, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      materialCatalog: prev.materialCatalog.map(m => m.id === id ? { ...m, [field]: value } : m)
+    }));
+  };
+
+  const handleRemoveCatalogItem = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      materialCatalog: prev.materialCatalog.filter(m => m.id !== id)
+    }));
+  };
+
   const handleSaveAll = async () => {
     await onSaveSettings(formData);
     await onSavePresets(localPresets);
@@ -161,6 +191,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
         {[
           { id: 'rates' as const, label: 'Sazebník & Příplatky', icon: DollarSign },
           { id: 'presets' as const, label: 'Šablony zakázek (Presety)', icon: Sparkles },
+          { id: 'catalog' as const, label: 'Katalog materiálu', icon: Layers },
           { id: 'contractor' as const, label: 'Profil dodavatele (OSVČ)', icon: User },
           { id: 'clients' as const, label: 'Adresář odběratelů', icon: Building2 },
         ].map(tab => {
@@ -500,6 +531,75 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Katalog materiálu, plynů a víceprací */}
+      {activeTab === 'catalog' && (
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <h3 className="text-sm font-black text-white">Katalog materiálu, plynů a víceprací</h3>
+              <p className="text-xs text-slate-400">Položky odsud jde v zápisu směny rychle vybrat a přidat i s množstvím</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddCatalogItem}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-bold text-amber-400 flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Přidat položku</span>
+            </button>
+          </div>
+
+          <div className="space-y-2.5">
+            {formData.materialCatalog.length === 0 ? (
+              <div className="text-center py-8 text-xs text-slate-500 font-medium border border-dashed border-slate-800 rounded-xl">
+                Katalog je zatím prázdný. Přidejte první položku (např. Argon, svářecí drát, kotouče).
+              </div>
+            ) : (
+              formData.materialCatalog.map((item) => (
+                <div key={item.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-center text-xs">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => handleUpdateCatalogItem(item.id, 'name', e.target.value)}
+                    placeholder="např. Argon 4.6 / láhev"
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm font-bold text-white focus:border-amber-500 focus:outline-none"
+                    style={{ minHeight: '40px' }}
+                  />
+                  <div className="relative w-full sm:w-28">
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.unitPrice}
+                      onChange={(e) => handleUpdateCatalogItem(item.id, 'unitPrice', Math.max(0, Number(e.target.value) || 0))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-2 pr-8 py-1.5 text-white font-mono font-bold"
+                      style={{ minHeight: '40px' }}
+                    />
+                    <span className="absolute right-2 top-2 text-[10px] text-slate-400">Kč</span>
+                  </div>
+                  <select
+                    value={item.unit}
+                    onChange={(e) => handleUpdateCatalogItem(item.id, 'unit', e.target.value)}
+                    className="w-full sm:w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-semibold"
+                    style={{ minHeight: '40px' }}
+                  >
+                    {CATALOG_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCatalogItem(item.id)}
+                    className="p-2 text-slate-500 hover:text-rose-400 flex items-center justify-center"
+                    style={{ minWidth: '40px', minHeight: '40px' }}
+                    title="Smazat položku"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

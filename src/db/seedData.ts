@@ -7,7 +7,7 @@ import {
 export const DEFAULT_SETTINGS: AppSettings = {
   id: 'global_settings',
   contractor: {
-    name: 'Jan Mošný',
+    name: 'Kryštof Mošner',
     tradeTitle: 'Svářečské, zámečnické a montážní práce',
     ico: '87452190',
     dic: 'CZ8905141234',
@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     iban: 'CZ7820100000002401897654',
     swift: 'FIOBCZPPXXX',
     phone: '+420 775 892 341',
-    email: 'jan.mosny.svarec@seznam.cz',
+    email: 'krystof.mosner@seznam.cz',
     certifications: 'ČSN EN ISO 9606-1 (141 TIG nerez/černý, 135 MAG ocel), Vazačský & Jeřábnický průkaz, Práce ve výškách'
   },
   rates: {
@@ -74,6 +74,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
       email: 'novak@kovo-novak.cz',
       defaultKm: 18
     }
+  ],
+  materialCatalog: [
+    { id: 'mat_argon', name: 'Argon 4.6 (láhev)', unitPrice: 650, unit: 'ks' },
+    { id: 'mat_tig_wire', name: 'Přídavný drát TIG ER316L', unitPrice: 240, unit: 'kg' },
+    { id: 'mat_sg2_wire', name: 'Svářecí drát SG2 15kg (cívka)', unitPrice: 1100, unit: 'ks' },
+    { id: 'mat_cutting_discs', name: 'Řezné kotouče 125mm (balení 10ks)', unitPrice: 350, unit: 'bal' },
+    { id: 'mat_anchors', name: 'Kotevní materiál / svorníky M16', unitPrice: 800, unit: 'bal' }
   ],
   darkMode: true,
   currencySymbol: 'Kč'

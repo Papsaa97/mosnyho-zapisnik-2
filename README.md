@@ -1,4 +1,4 @@
-# Mošnýho zápisník 2.0 – Profesionální montážní & svářečský výkazník (PWA)
+# Mošnyho zápisník 2.0 – Profesionální montážní & svářečský výkazník (PWA)
 
 Robustní, moderní PWA aplikace navržená pro samostatného řemeslníka a živnostníka (svářeč, zámečník, montér), který realizuje dílenské zakázky, havarijní servisy a montáže ve výškách pro generální dodavatele.
 
@@ -22,7 +22,7 @@ Aplikace řeší proměnlivé ceny podle typu práce, náročnosti (polohy svár
 
 3. **Oficiální předávací protokol k faktuře (A4 Print Layout)**
    - Formát přizpůsobený tisku `@media print` na čistou A4 bez tlačítek aplikace.
-   - Identifikace dodavatele (Jan Mošný, IČO, DIČ, bankovní spojení, certifikace svářeče dle ČSN EN ISO 9606-1).
+   - Identifikace dodavatele (Kryštof Mošner, IČO, DIČ, bankovní spojení, certifikace svářeče dle ČSN EN ISO 9606-1).
    - Identifikace odběratele a stavbyvedoucího.
    - Souhrnné KPI boxy (hodiny, km, diety, celková fakturovaná částka).
    - Položková tabulka jednotlivých dní s poznámkami a metodami svárů.

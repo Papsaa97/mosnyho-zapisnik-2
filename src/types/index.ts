@@ -16,6 +16,14 @@ export interface ExtraCostItem {
   amount: number;
 }
 
+/** Reusable catalog entry for materials, gases & consumables (Nastavení / Sazebník) */
+export interface MaterialCatalogItem {
+  id: string;
+  name: string;
+  unitPrice: number;
+  unit: string; // e.g. 'ks', 'bal', 'm', 'hod'
+}
+
 export interface EntryPricing {
   baseHourlyRate: number;
   complexityMultiplier: number;
@@ -193,6 +201,9 @@ export interface AppSettings {
   contractor: ContractorProfile;
   rates: RatesConfig;
   clients: ClientProfile[];
+  materialCatalog: MaterialCatalogItem[];
+  /** Last protocol number issued from the A4 handover report (PR-YYYY/XXX), used to suggest the next one. */
+  lastProtocolNumber?: string;
   darkMode: boolean;
   currencySymbol: string;
 }

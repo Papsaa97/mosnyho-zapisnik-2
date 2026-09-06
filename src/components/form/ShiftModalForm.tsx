@@ -30,16 +30,17 @@ import {
   AppSettings,
   INPUT_LIMITS
 } from '../../types';
-import { 
-  calculateNetHours, 
-  calculateEffectiveHourlyRate, 
-  calculateGrandTotal, 
+import {
+  calculateNetHours,
+  calculateEffectiveHourlyRate,
+  calculateGrandTotal,
   calculateTravelTotal,
   calculateExtraCostsTotal,
-  formatCurrency, 
+  formatCurrency,
   isDateWeekend,
   estimateDiet
 } from '../../services/pricingEngine';
+import { getNextDocumentNumber } from '../../services/documentNumbering';
 import { QuickBreakButtons } from './QuickBreakButtons';
 
 interface ShiftModalFormProps {
@@ -67,14 +68,6 @@ const COMMON_TAGS = [
   'Tlaková zkouška splněna',
   'Formování kořene Argon',
   'Zdržen jinou profesí'
-];
-
-const COMMON_EXTRAS = [
-  { description: 'Formovací plyn Argon 4.6 (lahev)', amount: 650 },
-  { description: 'Přídavný drát TIG ER316L (kg)', amount: 240 },
-  { description: 'Drát SG2 1.2mm cívka 15kg', amount: 1100 },
-  { description: 'Kotouče řezné 125x1.0 (balení 10ks)', amount: 350 },
-  { description: 'Kotevní materiál / svorníky M16', amount: 800 }
 ];
 
 export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
@@ -160,6 +153,8 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   );
   const [customExtraDesc, setCustomExtraDesc] = useState<string>('');
   const [customExtraAmount, setCustomExtraAmount] = useState<number>(0);
+  const [catalogItemId, setCatalogItemId] = useState<string>(settings.materialCatalog[0]?.id || '');
+  const [catalogQuantity, setCatalogQuantity] = useState<number>(1);
   const [notes, setNotes] = useState<string>(
     initialSource ? initialSource.notes || '' : ''
   );
@@ -234,6 +229,25 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     });
   }, [totalHours, calculatedHourlyRate, manualTotalOverride, isManualOverride, distanceKm, ratePerKm, travelTimeHours, travelHourlyRate, dietAllowance, extraCosts]);
 
+  // Suggested next invoice number for the current year, detected from the
+  // highest existing "VF-YYYY/XXX" number already used on other entries.
+  const suggestedInvoiceNumber = useMemo(() => {
+    return getNextDocumentNumber(
+      'VF',
+      new Date().getFullYear(),
+      existingEntries.map(e => e.invoiceNumber)
+    );
+  }, [existingEntries]);
+
+  // Switch status; auto-suggest the next invoice number the first time an
+  // entry is marked as invoiced, without overwriting one already typed in.
+  const handleStatusChange = (newStatus: WorkEntryStatus) => {
+    setStatus(newStatus);
+    if (newStatus === 'invoiced' && !invoiceNumber.trim()) {
+      setInvoiceNumber(suggestedInvoiceNumber);
+    }
+  };
+
   // Apply a preset
   const handleApplyPreset = (preset: ShiftPreset) => {
     setWorkType(preset.workType);
@@ -300,6 +314,16 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     handleAddExtra(desc, customExtraAmount);
     setCustomExtraDesc('');
     setCustomExtraAmount(0);
+  };
+
+  // Add an item from the material catalog (Nastavení / Sazebník) with quantity
+  const handleAddFromCatalog = () => {
+    const item = settings.materialCatalog.find(m => m.id === catalogItemId);
+    if (!item || catalogQuantity <= 0) return;
+    const amount = Math.round(item.unitPrice * catalogQuantity * 100) / 100;
+    const description = `${item.name} (${catalogQuantity} ${item.unit})`;
+    handleAddExtra(description, amount);
+    setCatalogQuantity(1);
   };
 
   // Append note tag
@@ -955,20 +979,50 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
               </div>
             </div>
 
-            {/* Quick Common Items */}
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_EXTRAS.map((c, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleAddExtra(c.description, c.amount)}
-                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium flex items-center gap-1 active:scale-95"
+            {/* Rychlý výběr z katalogu materiálu (Nastavení / Sazebník) s množstvím */}
+            {settings.materialCatalog.length > 0 ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select
+                  value={catalogItemId}
+                  onChange={(e) => setCatalogItemId(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:border-amber-500 focus:outline-none"
+                  style={{ minHeight: '44px' }}
                 >
-                  <Plus className="w-3 h-3 text-amber-400" />
-                  {c.description.split('(')[0]} ({c.amount} Kč)
-                </button>
-              ))}
-            </div>
+                  {settings.materialCatalog.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} — {item.unitPrice} Kč/{item.unit}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.5"
+                    min={0.5}
+                    value={catalogQuantity}
+                    onChange={(e) => setCatalogQuantity(Math.max(0, Number(e.target.value) || 0))}
+                    placeholder="Množství"
+                    className="w-24 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs font-bold focus:border-amber-500 focus:outline-none"
+                    style={{ minHeight: '44px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFromCatalog}
+                    disabled={!catalogItemId || catalogQuantity <= 0}
+                    className="px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700 text-amber-400 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors"
+                    style={{ minHeight: '44px' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Přidat</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Katalog materiálu je prázdný – přidejte položky v Nastavení / Sazebník / Katalog materiálu.
+              </p>
+            )}
 
             {/* Custom (non-preset) material or cost line */}
             <div className="flex flex-col sm:flex-row gap-2">
@@ -1050,7 +1104,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
                     <button
                       key={st.key}
                       type="button"
-                      onClick={() => setStatus(st.key)}
+                      onClick={() => handleStatusChange(st.key)}
                       className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
                         isSelected
                           ? `${st.color} shadow-md`
@@ -1068,14 +1122,25 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
             {/* Fakturační číslo pokud je vyfakturováno */}
             {status === 'invoiced' && (
               <div className="animate-in fade-in">
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Číslo faktury (např. VF-2026/028)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Číslo faktury (např. VF-2026/028)
+                  </label>
+                  {invoiceNumber.trim() !== suggestedInvoiceNumber && (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceNumber(suggestedInvoiceNumber)}
+                      className="text-[11px] text-amber-400 hover:underline font-semibold"
+                    >
+                      Použít návrh: {suggestedInvoiceNumber}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="VF-2026/028"
+                  placeholder={suggestedInvoiceNumber}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none"
                   style={{ minHeight: '44px' }}
                 />
