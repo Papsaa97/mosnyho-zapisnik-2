@@ -201,297 +201,272 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
         </div>
       </div>
 
-      {/* --- OFFICIAL A4 PRINT CONTAINER --- */}
-      <div className="print-container bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-2xl border border-slate-200">
-        
-        {/* Document Header */}
-        <div className="border-b-2 border-slate-900 pb-5 mb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-500 text-slate-950 font-black text-xs px-2 py-0.5 rounded">
-                OFICIÁLNÍ DOKUMENT
+      {/* --- A4 PREVIEW STAGE: true-to-scale on-screen miniature of the ---
+          --- printed sheet, identical on iPhone, iPad and desktop.    --- */}
+      <div className="pr-stage">
+        <div id="printable-invoice">
+
+          {/* Document Header */}
+          <div
+            className="pr-avoid-break"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '6mm',
+              borderBottom: '1pt solid #0f172a',
+              paddingBottom: '4mm',
+              marginBottom: '4mm'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2mm' }}>
+                <span style={{ background: '#f59e0b', color: '#000000', fontWeight: 900, fontSize: '7pt', padding: '0.8mm 2mm' }}>
+                  OFICIÁLNÍ DOKUMENT
+                </span>
+                <span className="pr-label" style={{ display: 'flex', alignItems: 'center', gap: '1.5mm' }}>
+                  Č. protokolu:
+                  <input
+                    type="text"
+                    value={protocolNumber}
+                    onChange={(e) => setProtocolNumber(e.target.value)}
+                    className="no-print"
+                    style={{
+                      fontFamily: "'Courier New', Courier, monospace",
+                      fontWeight: 800,
+                      fontSize: '7pt',
+                      border: '0.5pt solid #cbd5e1',
+                      background: '#f1f5f9',
+                      padding: '0.5mm 1.5mm',
+                      color: '#0f172a'
+                    }}
+                    title="Kliknutím upravte číslo protokolu"
+                  />
+                  <span className="print-only pr-mono" style={{ fontWeight: 800 }}>{protocolNumber}</span>
+                </span>
+              </div>
+              <h1 className="pr-h1" style={{ marginTop: '1.5mm' }}>
+                PŘEDÁVACÍ PROTOKOL &amp; PODKLAD K FAKTURACI
+              </h1>
+              <p className="pr-text" style={{ fontWeight: 700, marginTop: '1mm' }}>
+                Výkaz provedených svářečských a montážních prací za období:{' '}
+                <span style={{ fontWeight: 900, textTransform: 'uppercase' }}>{periodLabel}</span>
+              </p>
+            </div>
+
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <span className="pr-label" style={{ display: 'block' }}>Datum vystavení výkazu:</span>
+              <span className="pr-text pr-mono" style={{ fontWeight: 800 }}>
+                {new Date().toLocaleDateString('cs-CZ')}
               </span>
-              <div className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                <span>Č. protokolu:</span>
-                <input
-                  type="text"
-                  value={protocolNumber}
-                  onChange={(e) => setProtocolNumber(e.target.value)}
-                  className="no-print bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 focus:outline-none"
-                  title="Kliknutím upravte číslo protokolu"
-                />
-                <span className="print-only font-mono">{protocolNumber}</span>
-              </div>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight mt-1">
-              PŘEDÁVACÍ PROTOKOL & PODKLAD K FAKTURACI
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 font-semibold">
-              Výkaz provedených svářečských a montážních prací za období: <span className="text-slate-950 font-black uppercase">{periodLabel}</span>
-            </p>
           </div>
 
-          <div className="text-right sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
-            <span className="text-[11px] text-slate-500 uppercase font-bold block">Datum vystavení výkazu:</span>
-            <span className="text-sm font-bold text-slate-900 font-mono">
-              {new Date().toLocaleDateString('cs-CZ')}
-            </span>
-          </div>
-        </div>
-
-        {/* Contractor & Client Info Box */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-          {/* Dodavatel (Kryštof Mošner) */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block border-b border-slate-200 pb-1 mb-1">
-              ZHOTOVITEL (DODAVATEL / OSVČ)
-            </span>
-            <div className="text-sm font-black text-slate-950">{settings.contractor.name}</div>
-            <div className="text-slate-600 font-medium">{settings.contractor.tradeTitle}</div>
-            <div className="text-slate-700">{settings.contractor.address}, {settings.contractor.city} {settings.contractor.zip}</div>
-            <div className="pt-1 text-slate-900 font-mono font-semibold">
-              IČO: <strong>{settings.contractor.ico}</strong> {settings.contractor.dic && `| DIČ: ${settings.contractor.dic}`}
-            </div>
-            <div className="text-slate-900 font-mono">
-              Číslo účtu: <strong className="font-bold">{settings.contractor.bankAccount}</strong>
-            </div>
-            {settings.contractor.certifications && (
-              <div className="pt-1 text-[11px] text-slate-600 leading-tight">
-                <strong>Svářečská kvalifikace:</strong> {settings.contractor.certifications}
+          {/* Contractor & Client Info — fixed 2 columns, never stacks */}
+          <div className="pr-grid-2 pr-box" style={{ marginBottom: '5mm', background: '#f8fafc' }}>
+            <div>
+              <span className="pr-label" style={{ display: 'block', borderBottom: '0.5pt solid #cbd5e1', paddingBottom: '1mm', marginBottom: '1mm' }}>
+                ZHOTOVITEL (DODAVATEL / OSVČ)
+              </span>
+              <div className="pr-text" style={{ fontWeight: 900 }}>{settings.contractor.name}</div>
+              <div className="pr-text">{settings.contractor.tradeTitle}</div>
+              <div className="pr-text">{settings.contractor.address}, {settings.contractor.city} {settings.contractor.zip}</div>
+              <div className="pr-text pr-mono" style={{ marginTop: '1mm' }}>
+                IČO: <strong>{settings.contractor.ico}</strong>{settings.contractor.dic && ` | DIČ: ${settings.contractor.dic}`}
               </div>
-            )}
-          </div>
-
-          {/* Odběratel */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block border-b border-slate-200 pb-1 mb-1">
-              OBJEDNATEL (ODBĚRATEL / GENERÁLNÍ DODAVATEL)
-            </span>
-            <div className="text-sm font-black text-slate-950">
-              {matchedClient?.name || (selectedClient !== 'all' ? selectedClient : 'Všichni odběratelé')}
+              <div className="pr-text pr-mono">Číslo účtu: <strong>{settings.contractor.bankAccount}</strong></div>
+              {settings.contractor.certifications && (
+                <div className="pr-small" style={{ marginTop: '1mm' }}>
+                  <strong>Svářečská kvalifikace:</strong> {settings.contractor.certifications}
+                </div>
+              )}
             </div>
-            {matchedClient?.address && (
-              <div className="text-slate-700">{matchedClient.address}</div>
-            )}
-            {matchedClient?.ico && (
-              <div className="pt-1 text-slate-900 font-mono font-semibold">
-                IČO: <strong>{matchedClient.ico}</strong> {matchedClient.dic && `| DIČ: ${matchedClient.dic}`}
+
+            <div>
+              <span className="pr-label" style={{ display: 'block', borderBottom: '0.5pt solid #cbd5e1', paddingBottom: '1mm', marginBottom: '1mm' }}>
+                OBJEDNATEL (ODBĚRATEL / GENERÁLNÍ DODAVATEL)
+              </span>
+              <div className="pr-text" style={{ fontWeight: 900 }}>
+                {matchedClient?.name || (selectedClient !== 'all' ? selectedClient : 'Všichni odběratelé')}
               </div>
-            )}
-            {matchedClient?.contactPerson && (
-              <div className="text-slate-700">
-                Kontaktní osoba: <strong>{matchedClient.contactPerson}</strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Summary Metric Boxes */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Celkem odpracováno</span>
-            <span className="text-lg font-black text-slate-950 font-mono">
-              {totals.totalHours.toFixed(2).replace('.', ',')} h
-            </span>
+              {matchedClient?.address && <div className="pr-text">{matchedClient.address}</div>}
+              {matchedClient?.ico && (
+                <div className="pr-text pr-mono" style={{ marginTop: '1mm' }}>
+                  IČO: <strong>{matchedClient.ico}</strong>{matchedClient.dic && ` | DIČ: ${matchedClient.dic}`}
+                </div>
+              )}
+              {matchedClient?.contactPerson && (
+                <div className="pr-text">Kontaktní osoba: <strong>{matchedClient.contactPerson}</strong></div>
+              )}
+            </div>
           </div>
 
-          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Ujeto kilometrů</span>
-            <span className="text-lg font-black text-slate-950 font-mono">
-              {totals.totalKm} km
-            </span>
+          {/* Summary KPI strip — fixed 4 columns */}
+          <div className="pr-grid-4" style={{ marginBottom: '5mm' }}>
+            <div className="pr-box" style={{ textAlign: 'center' }}>
+              <span className="pr-label" style={{ display: 'block' }}>Celkem odpracováno</span>
+              <span className="pr-h2 pr-mono">{totals.totalHours.toFixed(2).replace('.', ',')} h</span>
+            </div>
+            <div className="pr-box" style={{ textAlign: 'center' }}>
+              <span className="pr-label" style={{ display: 'block' }}>Ujeto kilometrů</span>
+              <span className="pr-h2 pr-mono">{totals.totalKm} km</span>
+            </div>
+            <div className="pr-box" style={{ textAlign: 'center' }}>
+              <span className="pr-label" style={{ display: 'block' }}>Stravné celkem</span>
+              <span className="pr-h2 pr-mono">{formatCurrency(totals.totalDiets)}</span>
+            </div>
+            <div className="pr-box" style={{ textAlign: 'center', background: '#fffbeb', border: '1pt solid #0f172a' }}>
+              <span className="pr-label" style={{ display: 'block', color: '#78350f' }}>
+                {showFinancials ? 'Celkem k fakturaci' : 'Počet směn'}
+              </span>
+              <span className="pr-h2 pr-mono">
+                {showFinancials ? formatCurrency(totals.grandTotal) : `${reportEntries.length} směn`}
+              </span>
+            </div>
           </div>
 
-          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Stravné celkem</span>
-            <span className="text-lg font-black text-slate-950 font-mono">
-              {formatCurrency(totals.totalDiets)}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-lg border-2 border-slate-900 bg-amber-50 text-center">
-            <span className="text-[10px] uppercase font-black text-amber-900 block">
-              {showFinancials ? 'Celkem k fakturaci' : 'Počet směn'}
-            </span>
-            <span className="text-lg font-black text-slate-950 font-mono">
-              {showFinancials ? formatCurrency(totals.grandTotal) : `${reportEntries.length} směn`}
-            </span>
-          </div>
-        </div>
-
-        {/* Itemized Table of Days */}
-        <div className="overflow-x-auto mb-6">
-          <table className="w-full text-left text-xs border-collapse border border-slate-300">
+          {/* Itemized table — fixed mm column widths via <colgroup>, never reflows */}
+          <table className="pr-table" style={{ marginBottom: '5mm' }}>
+            <colgroup>
+              <col style={{ width: '22mm' }} />
+              <col />
+              <col style={{ width: '18mm' }} />
+              {showFinancials && <col style={{ width: '20mm' }} />}
+              {showFinancials && <col style={{ width: '22mm' }} />}
+              {showFinancials && <col style={{ width: '26mm' }} />}
+            </colgroup>
             <thead>
-              <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
-                <th className="p-2 border border-slate-300">Datum</th>
-                <th className="p-2 border border-slate-300">Projekt / Popis činnosti</th>
-                <th className="p-2 border border-slate-300 text-center">Čas</th>
-                <th className="p-2 border border-slate-300 text-center">Pauza</th>
-                <th className="p-2 border border-slate-300 text-right">Hodiny</th>
-                {showFinancials && (
-                  <>
-                    <th className="p-2 border border-slate-300 text-right">Sazba</th>
-                    <th className="p-2 border border-slate-300 text-right">Práce</th>
-                    <th className="p-2 border border-slate-300 text-right">Doprava</th>
-                    <th className="p-2 border border-slate-300 text-right">Diety</th>
-                    <th className="p-2 border border-slate-300 text-right">Materiál</th>
-                    <th className="p-2 border border-slate-300 text-right font-black">Celkem</th>
-                  </>
-                )}
-                <th className="p-2 border border-slate-300 text-center">Stav</th>
+              <tr>
+                <th>Datum</th>
+                <th>Popis prací a svárů</th>
+                <th style={{ textAlign: 'right' }}>Hodiny</th>
+                {showFinancials && <th style={{ textAlign: 'right' }}>Sazba</th>}
+                {showFinancials && <th style={{ textAlign: 'right' }}>Cesta / Diety</th>}
+                {showFinancials && <th style={{ textAlign: 'right' }}>Celkem</th>}
               </tr>
             </thead>
             <tbody>
-              {reportEntries.map((e, index) => {
-                const laborEarnings = Math.round(e.totalHours * e.pricing.calculatedHourlyRate);
+              {reportEntries.map((e) => {
                 const travelCosts = Math.round(
                   (e.travel.distanceKm * e.travel.ratePerKm) +
                   (e.travel.travelTimeHours * e.travel.travelHourlyRate)
                 );
-                const extras = (e.extraCosts || []).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+                const travelAndDiet = travelCosts + (e.travel.dietAllowance || 0);
 
                 return (
-                  <tr key={e.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="p-2 border border-slate-300 font-mono font-medium whitespace-nowrap">
+                  <tr key={e.id}>
+                    <td>
                       {new Date(e.date).toLocaleDateString('cs-CZ')}
-                    </td>
-                    <td className="p-2 border border-slate-300">
-                      <div className="font-bold text-slate-900">{e.projectName}</div>
-                      <div className="text-[10px] text-slate-600">
-                        {e.weldingMethod && e.weldingMethod !== 'NONE' && `[${e.weldingMethod}] `}
-                        {e.notes || ''}
+                      <div className="pr-small">
+                        {e.startTime}–{e.endTime}{e.breakMinutes > 0 ? ` (${e.breakMinutes}m pauza)` : ''}
                       </div>
                     </td>
-                    <td className="p-2 border border-slate-300 text-center font-mono whitespace-nowrap">
-                      {e.startTime}–{e.endTime}
+                    <td className="pr-col-wrap">
+                      <div style={{ fontWeight: 800 }}>{e.projectName}</div>
+                      {((e.weldingMethod && e.weldingMethod !== 'NONE') || e.notes) && (
+                        <div className="pr-small">
+                          {e.weldingMethod && e.weldingMethod !== 'NONE' && `[${e.weldingMethod}] `}
+                          {e.notes || ''}
+                        </div>
+                      )}
                     </td>
-                    <td className="p-2 border border-slate-300 text-center font-mono">
-                      {e.breakMinutes}m
-                    </td>
-                    <td className="p-2 border border-slate-300 text-right font-mono font-bold whitespace-nowrap">
+                    <td className="pr-mono" style={{ textAlign: 'right', fontWeight: 800 }}>
                       {e.totalHours.toFixed(2).replace('.', ',')}
                     </td>
-
                     {showFinancials && (
-                      <>
-                        <td className="p-2 border border-slate-300 text-right font-mono whitespace-nowrap">
-                          {e.pricing.calculatedHourlyRate} Kč
-                        </td>
-                        <td className="p-2 border border-slate-300 text-right font-mono whitespace-nowrap">
-                          {formatCurrency(laborEarnings)}
-                        </td>
-                        <td className="p-2 border border-slate-300 text-right font-mono whitespace-nowrap">
-                          {e.travel.distanceKm > 0 ? `${formatCurrency(travelCosts)} (${e.travel.distanceKm}km)` : '–'}
-                        </td>
-                        <td className="p-2 border border-slate-300 text-right font-mono whitespace-nowrap">
-                          {e.travel.dietAllowance > 0 ? formatCurrency(e.travel.dietAllowance) : '–'}
-                        </td>
-                        <td className="p-2 border border-slate-300 text-right font-mono whitespace-nowrap">
-                          {extras > 0 ? formatCurrency(extras) : '–'}
-                        </td>
-                        <td className="p-2 border border-slate-300 text-right font-mono font-black text-slate-950 whitespace-nowrap">
-                          {formatCurrency(e.totalEarnings)}
-                        </td>
-                      </>
+                      <td className="pr-mono" style={{ textAlign: 'right' }}>{e.pricing.calculatedHourlyRate} Kč</td>
                     )}
-
-                    <td className="p-2 border border-slate-300 text-center font-semibold text-[10px] uppercase whitespace-nowrap">
-                      {e.status === 'paid' ? 'Zaplaceno' :
-                       e.status === 'invoiced' ? 'Vyfakturováno' :
-                       e.status === 'submitted' ? 'Odevzdáno' : 'Koncept'}
-                    </td>
+                    {showFinancials && (
+                      <td className="pr-mono" style={{ textAlign: 'right' }}>
+                        {travelAndDiet > 0 ? formatCurrency(travelAndDiet) : '–'}
+                        {e.travel.distanceKm > 0 && <div className="pr-small">{e.travel.distanceKm} km</div>}
+                      </td>
+                    )}
+                    {showFinancials && (
+                      <td className="pr-mono" style={{ textAlign: 'right', fontWeight: 900 }}>
+                        {formatCurrency(e.totalEarnings)}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
-            {/* Table Footers */}
             <tfoot>
-              <tr className="bg-slate-200 text-slate-950 font-black border-t-2 border-slate-900">
-                <td colSpan={4} className="p-2 border border-slate-300 text-right">
-                  CELKEM ZA OBDOBÍ:
-                </td>
-                <td className="p-2 border border-slate-300 text-right font-mono font-black">
+              <tr style={{ background: '#e2e8f0', fontWeight: 900 }}>
+                <td colSpan={2} style={{ textAlign: 'right' }}>CELKEM ZA OBDOBÍ:</td>
+                <td className="pr-mono" style={{ textAlign: 'right' }}>
                   {totals.totalHours.toFixed(2).replace('.', ',')} h
                 </td>
+                {showFinancials && <td>&nbsp;</td>}
                 {showFinancials && (
-                  <>
-                    <td className="p-2 border border-slate-300 text-right">–</td>
-                    <td className="p-2 border border-slate-300 text-right font-mono">
-                      {formatCurrency(totals.totalLaborCost)}
-                    </td>
-                    <td className="p-2 border border-slate-300 text-right font-mono">
-                      {formatCurrency(totals.totalTravelCost)}
-                    </td>
-                    <td className="p-2 border border-slate-300 text-right font-mono">
-                      {formatCurrency(totals.totalDiets)}
-                    </td>
-                    <td className="p-2 border border-slate-300 text-right font-mono">
-                      {formatCurrency(totals.totalExtras)}
-                    </td>
-                    <td className="p-2 border border-slate-300 text-right font-mono text-sm font-black text-slate-950">
-                      {formatCurrency(totals.grandTotal)}
-                    </td>
-                  </>
+                  <td className="pr-mono" style={{ textAlign: 'right' }}>
+                    {formatCurrency(totals.totalTravelCost + totals.totalDiets)}
+                  </td>
                 )}
-                <td className="p-2 border border-slate-300"></td>
+                {showFinancials && (
+                  <td className="pr-mono" style={{ textAlign: 'right' }}>{formatCurrency(totals.grandTotal)}</td>
+                )}
               </tr>
             </tfoot>
           </table>
-        </div>
 
-        {/* Consumables / Extra Costs Detailed Box if any */}
-        {totals.totalExtras > 0 && showFinancials && (
-          <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs page-break-inside-avoid">
-            <span className="font-bold text-slate-900 uppercase block mb-1">
-              Podrobný rozpis spotřebovaného materiálu a víceprací:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
-              {reportEntries.flatMap(e => (e.extraCosts || []).map(item => (
-                <div key={item.id} className="flex justify-between border-b border-slate-200 pb-0.5">
-                  <span>{e.date} – {item.description}</span>
-                  <strong className="font-mono">{formatCurrency(item.amount)}</strong>
+          {/* Consumables / Extra Costs Detailed Box if any */}
+          {totals.totalExtras > 0 && showFinancials && (
+            <div className="pr-box pr-avoid-break" style={{ marginBottom: '5mm', background: '#f8fafc' }}>
+              <span className="pr-label" style={{ display: 'block', marginBottom: '1.5mm' }}>
+                Podrobný rozpis spotřebovaného materiálu a víceprací:
+              </span>
+              <div className="pr-grid-2">
+                {reportEntries.flatMap(e => (e.extraCosts || []).map(item => (
+                  <div
+                    key={item.id}
+                    className="pr-text"
+                    style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '0.5pt solid #e2e8f0', paddingBottom: '0.5mm' }}
+                  >
+                    <span>{e.date} – {item.description}</span>
+                    <strong className="pr-mono">{formatCurrency(item.amount)}</strong>
+                  </div>
+                )))}
+              </div>
+            </div>
+          )}
+
+          {/* Acceptance Note & Signatures */}
+          <div className="pr-avoid-break" style={{ paddingTop: '4mm', borderTop: '0.5pt solid #cbd5e1' }}>
+            <p className="pr-small" style={{ marginBottom: '6mm' }}>
+              Podpisem tohoto protokolu obě smluvní strany stvrzují, že výše uvedené práce, montážní činnosti a sváry byly provedeny řádně, v požadovaném rozsahu a kvalitě dle platných technických norem a výkresové dokumentace. Tento protokol slouží jako neoddělitelný podklad k vystavení daňového dokladu (faktury).
+            </p>
+
+            <div className="pr-grid-2" style={{ gap: '10mm' }}>
+              {/* Zhotovitel */}
+              <div style={{ borderTop: '0.5pt solid #64748b', paddingTop: '2mm', textAlign: 'center' }}>
+                <span className="pr-text" style={{ fontWeight: 800, display: 'block' }}>
+                  Za zhotovitele (Montér / Svářeč)
+                </span>
+                <span className="pr-small" style={{ display: 'block', marginBottom: '8mm' }}>
+                  {settings.contractor.name}
+                </span>
+                <div className="pr-small" style={{ borderTop: '0.5pt dashed #cbd5e1', paddingTop: '1mm' }}>
+                  Podpis a razítko
                 </div>
-              )))}
-            </div>
-          </div>
-        )}
-
-        {/* Acceptance Note & Signatures (Page Break Avoid) */}
-        <div className="page-break-inside-avoid pt-4 border-t border-slate-200">
-          <p className="text-[11px] text-slate-500 mb-6 leading-relaxed">
-            Podpisem tohoto protokolu obě smluvní strany stvrzují, že výše uvedené práce, montážní činnosti a sváry byly provedeny řádně, v požadovaném rozsahu a kvalitě dle platných technických norem a výkresové dokumentace. Tento protokol slouží jako neoddělitelný podklad k vystavení daňového dokladu (faktury).
-          </p>
-
-          <div className="grid grid-cols-2 gap-8 pt-4">
-            {/* Zhotovitel */}
-            <div className="border-t border-slate-400 pt-2 text-center">
-              <span className="text-xs font-bold text-slate-800 block">
-                Za zhotovitele (Montér / Svářeč)
-              </span>
-              <span className="text-[11px] text-slate-500 block mb-8">
-                {settings.contractor.name}
-              </span>
-              <div className="text-[10px] text-slate-400 border-t border-dashed border-slate-300 pt-1">
-                Podpis a razítko
               </div>
-            </div>
 
-            {/* Objednatel */}
-            <div className="border-t border-slate-400 pt-2 text-center">
-              <span className="text-xs font-bold text-slate-800 block">
-                Za objednatele (Stavbyvedoucí / TDI)
-              </span>
-              <span className="text-[11px] text-slate-500 block mb-8">
-                {matchedClient?.contactPerson || 'Odpovědný zástupce stavby'}
-              </span>
-              <div className="text-[10px] text-slate-400 border-t border-dashed border-slate-300 pt-1">
-                Podpis a razítko převzetí
+              {/* Objednatel */}
+              <div style={{ borderTop: '0.5pt solid #64748b', paddingTop: '2mm', textAlign: 'center' }}>
+                <span className="pr-text" style={{ fontWeight: 800, display: 'block' }}>
+                  Za objednatele (Stavbyvedoucí / TDI)
+                </span>
+                <span className="pr-small" style={{ display: 'block', marginBottom: '8mm' }}>
+                  {matchedClient?.contactPerson || 'Odpovědný zástupce stavby'}
+                </span>
+                <div className="pr-small" style={{ borderTop: '0.5pt dashed #cbd5e1', paddingTop: '1mm' }}>
+                  Podpis a razítko převzetí
+                </div>
               </div>
             </div>
           </div>
+
         </div>
-
       </div>
     </div>
   );
