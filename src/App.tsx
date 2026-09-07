@@ -95,9 +95,10 @@ export function App() {
     handleFinishLiveShift(adjustedData);
   }, [appSmartCheckoutData, handleFinishLiveShift]);
 
-  // Handle PWA shortcuts from URL parameter. This synchronizes with an
-  // external system (the launch URL set by the home-screen shortcuts) right
-  // after mount – it can't be an event handler since no user action fires it.
+  // Handle actions triggered from iOS Shortcuts / home-screen widgets via a
+  // "?akce=" URL parameter (also used by the PWA manifest shortcuts below).
+  // This synchronizes with an external system (the launch URL) right after
+  // mount – it can't be an event handler since no user action fires it.
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -108,6 +109,7 @@ export function App() {
       if (action === 'start_shift' || action === 'start') {
         if (shiftTimer.status === 'idle') {
           shiftTimer.startShift();
+          showToast('Směna zahájena', 'success');
         }
       } else if (action === 'end_shift' || action === 'stop') {
         if (shiftTimer.status !== 'idle') {
@@ -127,16 +129,16 @@ export function App() {
         } else if (shiftTimer.status === 'paused') {
           shiftTimer.resumeShift();
         }
-      } else if (action === 'manual_entry') {
+      } else if (action === 'manual_entry' || action === 'novy') {
         setEditingEntry(null);
         setInitialFormValues(null);
         setIsShiftModalOpen(true);
       }
 
-      // Clear query params without reloading the page
-      window.history.replaceState({}, '', window.location.pathname);
+      // Clear the query param so a page refresh (F5) doesn't repeat the action
+      window.history.replaceState({}, '', '/');
     }
-  }, [shiftTimer, handleFinishLiveShift]);
+  }, [shiftTimer, handleFinishLiveShift, showToast]);
 
   // Reactive queries from IndexedDB
   const entries = useLiveQuery(() => db.entries.toArray(), []) || EMPTY_ENTRIES;
@@ -310,7 +312,7 @@ export function App() {
         />
       )}
 
-      {/* Smart Checkout Modal triggered by shortcut or global end_shift */}
+      {/* Smart Checkout Modal triggered by the "?akce=stop" shortcut */}
       {appSmartCheckoutData && (
         <SmartCheckoutModal
           isOpen={Boolean(appSmartCheckoutData)}
