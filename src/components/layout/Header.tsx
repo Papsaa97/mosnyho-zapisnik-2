@@ -40,10 +40,15 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
 
   const handleResetData = useCallback(async () => {
     if (window.confirm('Opravdu chcete obnovit výchozí ukázková data svářeče? Všechny úpravy budou přepsány ukázkou.')) {
-      await resetToDemoData();
-      showToast('Ukázková data byla úspěšně obnovena', 'success');
-      setShowBackupMenu(false);
-      triggerHaptic('success');
+      try {
+        await resetToDemoData();
+        showToast('Ukázková data byla úspěšně obnovena', 'success');
+        setShowBackupMenu(false);
+        triggerHaptic('success');
+      } catch {
+        showToast('Chyba při obnově dat', 'error');
+        triggerHaptic('error');
+      }
     }
   }, [showToast]);
 
@@ -66,11 +71,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const content = event.target?.result as string;
-      const success = await importDatabaseBackupFromJSON(content);
-      if (success) {
-        showToast('Záloha byla úspěšně nahrána ✓', 'success');
-        triggerHaptic('success');
-      } else {
+      try {
+        const success = await importDatabaseBackupFromJSON(content);
+        if (success) {
+          showToast('Záloha byla úspěšně nahrána ✓', 'success');
+          triggerHaptic('success');
+        } else {
+          showToast('Chyba při obnově: neplatný soubor', 'error');
+          triggerHaptic('error');
+        }
+      } catch {
         showToast('Chyba při obnově: neplatný soubor', 'error');
         triggerHaptic('error');
       }
@@ -80,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
   }, [showToast]);
 
   return (
-    <header className="no-print sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 shadow-lg">
+    <header className="no-print sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 shadow-lg pt-[max(0.625rem,env(safe-area-inset-top))]">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
         {/* Brand & Identity */}
         <div className="flex items-center gap-2.5 sm:gap-3">
@@ -147,13 +157,13 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
 
                 <button
                   onClick={handleBackupExport}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors min-h-[44px]"
                 >
                   <Download className="w-4 h-4 text-amber-400" />
                   Stáhnout zálohu (JSON)
                 </button>
 
-                <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors">
+                <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors min-h-[44px]">
                   <Upload className="w-4 h-4 text-sky-400" />
                   Obnovit ze zálohy (JSON)
                   <input
@@ -168,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
 
                 <button
                   onClick={handleResetData}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors min-h-[44px]"
                 >
                   <RotateCcw className="w-4 h-4 text-rose-400" />
                   Obnovit ukázková data

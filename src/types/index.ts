@@ -206,4 +206,5 @@ export interface AppSettings {
   lastProtocolNumber?: string;
   darkMode: boolean;
   currencySymbol: string;
+  shiftAnomalyLimitHours: number;
 }

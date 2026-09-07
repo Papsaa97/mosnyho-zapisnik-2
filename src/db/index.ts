@@ -43,7 +43,7 @@ export async function checkStorageQuota(): Promise<void> {
         if (usedPercent > 80) {
           console.warn(`[DB] Storage nearly full: ${usedMB} MB / ${quotaMB} MB (${usedPercent.toFixed(0)}%)`);
         } else {
-          console.log(`[DB] Storage OK: ${usedMB} MB / ${quotaMB} MB used`);
+
         }
       }
     }
@@ -59,8 +59,8 @@ export async function initializeDatabase(): Promise<void> {
   try {
     // Request persistent storage to avoid iOS eviction
     if ('storage' in navigator && 'persist' in navigator.storage) {
-      const persisted = await navigator.storage.persist();
-      console.log('[DB] Persistent storage:', persisted ? 'granted ✓' : 'denied (data may be cleared)');
+      await navigator.storage.persist();
+
     }
 
     const settingsCount = await db.settings.count();

@@ -30,7 +30,22 @@ export function App() {
   const [appSmartCheckoutData, setAppSmartCheckoutData] = useState<ShiftCheckoutData | null>(null);
 
   // Live Shift Tracker hook with localStorage persistence & haptics
-  const shiftTimer = useShiftTimer();
+  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || EMPTY_SETTINGS_LIST;
+  const settings: AppSettings = useMemo(() => {
+    const stored = settingsList[0];
+    if (!stored) return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      rates: {
+        ...DEFAULT_SETTINGS.rates,
+        ...stored.rates,
+        surcharges: { ...DEFAULT_SETTINGS.rates.surcharges, ...stored.rates?.surcharges }
+      },
+      contractor: { ...DEFAULT_SETTINGS.contractor, ...stored.contractor }
+    };
+  }, [settingsList]);
+  const shiftTimer = useShiftTimer(settings.shiftAnomalyLimitHours || 16);
 
   // Initialize DB once on start
   useEffect(() => {
@@ -128,23 +143,7 @@ export function App() {
   // Reactive queries from IndexedDB
   const entries = useLiveQuery(() => db.entries.toArray(), []) || EMPTY_ENTRIES;
   const presets = useLiveQuery(() => db.presets.toArray(), []) || DEFAULT_PRESETS;
-  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || EMPTY_SETTINGS_LIST;
-  // Merge over DEFAULT_SETTINGS so fields added in later app versions
-  // (e.g. materialCatalog) are backfilled for settings saved before they existed.
-  const settings: AppSettings = useMemo(() => {
-    const stored = settingsList[0];
-    if (!stored) return DEFAULT_SETTINGS;
-    return {
-      ...DEFAULT_SETTINGS,
-      ...stored,
-      rates: {
-        ...DEFAULT_SETTINGS.rates,
-        ...stored.rates,
-        surcharges: { ...DEFAULT_SETTINGS.rates.surcharges, ...stored.rates?.surcharges }
-      },
-      contractor: { ...DEFAULT_SETTINGS.contractor, ...stored.contractor }
-    };
-  }, [settingsList]);
+
 
   // Count items ready for billing
   const pendingInvoiceCount = useMemo(
