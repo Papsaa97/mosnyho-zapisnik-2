@@ -103,15 +103,15 @@ export function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
-    const action = urlParams.get('action') || urlParams.get('akce');
+    const akce = urlParams.get('akce');
 
-    if (action) {
-      if (action === 'start_shift' || action === 'start') {
+    if (akce) {
+      if (akce === 'start') {
         if (shiftTimer.status === 'idle') {
           shiftTimer.startShift();
           showToast('Směna zahájena', 'success');
         }
-      } else if (action === 'end_shift' || action === 'stop') {
+      } else if (akce === 'stop') {
         if (shiftTimer.status !== 'idle') {
           const data = shiftTimer.getShiftCheckoutData();
           if (data) {
@@ -123,13 +123,13 @@ export function App() {
             }
           }
         }
-      } else if (action === 'toggle_pause' || action === 'pauza') {
+      } else if (akce === 'pauza') {
         if (shiftTimer.status === 'running') {
           shiftTimer.pauseShift();
         } else if (shiftTimer.status === 'paused') {
           shiftTimer.resumeShift();
         }
-      } else if (action === 'manual_entry' || action === 'novy') {
+      } else if (akce === 'novy') {
         setEditingEntry(null);
         setInitialFormValues(null);
         setIsShiftModalOpen(true);

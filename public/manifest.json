@@ -78,7 +78,7 @@
       "name": "Zapsat směnu zpětně",
       "short_name": "Manuální zápis",
       "description": "Otevřít formulář pro manuální zápis směny",
-"url": "/?akce=novy",
+      "url": "/?akce=novy",
       "icons": [
         {
           "src": "/icon-192.svg",
