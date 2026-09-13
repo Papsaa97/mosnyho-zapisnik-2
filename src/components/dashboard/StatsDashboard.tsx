@@ -49,6 +49,15 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
     const clientMap: Record<string, { earnings: number; hours: number }> = {};
     const monthMap: Record<string, number> = {};
 
+    let rolling12MonthsTurnover = 0;
+    let currentYearTurnover = 0;
+    const now = new Date();
+    const currentYearStr = String(now.getFullYear());
+    
+    // Pro výpočet DPH (obrat za 12 po sobě jdoucích měsíců)
+    // Např. teď je září, takže počítáme od 1. října předchozího roku do 30. září tohoto roku
+    const dphLimitStart = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 7);
+
     entries.forEach(e => {
       const earn = e.totalEarnings || 0;
       const h = e.totalHours || 0;
@@ -59,6 +68,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
       if (e.status === 'paid') paidEarnings += earn;
       else if (e.status === 'invoiced') invoicedPendingEarnings += earn;
       else draftSubmittedEarnings += earn;
+
+      // Obrat se počítá jen z fakturovaných a zaplacených
+      if (e.status === 'invoiced' || e.status === 'paid') {
+        const entryMonth = e.date.slice(0, 7);
+        if (entryMonth >= dphLimitStart) {
+          rolling12MonthsTurnover += earn;
+        }
+        if (e.date.startsWith(currentYearStr)) {
+          currentYearTurnover += earn;
+        }
+      }
 
       if (workTypeMap[e.workType]) {
         workTypeMap[e.workType].hours += h;
@@ -79,6 +99,11 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
     });
 
     const avgHourly = totalHours > 0 ? Math.round(totalEarnings / totalHours) : 0;
+    
+    // Paušální daň odhad (60 % výdaje) pro aktuální rok
+    const pausalExpenses = currentYearTurnover * 0.6;
+    const taxBase = Math.max(0, currentYearTurnover - pausalExpenses);
+    const estimatedTax15 = taxBase * 0.15; // Daň 15% (bez odečtu slevy na poplatníka apod.)
 
     return {
       totalEarnings,
@@ -90,7 +115,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
       avgHourly,
       workTypeMap,
       clientMap,
-      monthMap
+      monthMap,
+      rolling12MonthsTurnover,
+      currentYearTurnover,
+      pausalExpenses,
+      taxBase,
+      estimatedTax15
     };
   }, [entries]);
 
@@ -197,9 +227,79 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           onEdit={onEdit}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           
-          {/* Work Type Breakdown */}
+          {/* Fakturoid-style Tax & VAT Tracking */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* VAT Limit (Obrat DPH) */}
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow">
+              <h3 className="text-sm font-black text-white flex items-center gap-2 mb-4">
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+                Daňový semafor: Limit DPH (2 000 000 Kč)
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between text-xs font-bold text-slate-300">
+                  <span>Obrat za 12 měsíců:</span>
+                  <span className="font-mono">{formatCurrency(stats.rolling12MonthsTurnover)}</span>
+                </div>
+                
+                <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 relative">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${
+                      stats.rolling12MonthsTurnover > 1800000 
+                        ? 'bg-rose-500' 
+                        : stats.rolling12MonthsTurnover > 1500000 
+                          ? 'bg-amber-500' 
+                          : 'bg-emerald-500'
+                    }`} 
+                    style={{ width: `${Math.min(100, (stats.rolling12MonthsTurnover / 2000000) * 100)}%` }}
+                  ></div>
+                  <div className="absolute top-0 bottom-0 left-[75%] border-l-2 border-dashed border-slate-950 opacity-50" title="1.5M - blížící se limit"></div>
+                </div>
+                
+                <div className="text-[10px] text-slate-400 leading-relaxed">
+                  Zákonný limit pro povinnou registraci plátce DPH je obrat 2 000 000 Kč za posledních 12 po sobě jdoucích kalendářních měsíců. 
+                  Zbývá <strong className="text-slate-300">{formatCurrency(Math.max(0, 2000000 - stats.rolling12MonthsTurnover))}</strong>.
+                </div>
+              </div>
+            </div>
+
+            {/* Tax estimation */}
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow">
+              <h3 className="text-sm font-black text-white flex items-center gap-2 mb-4">
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+                Odhad daně z příjmů (60% paušál)
+              </h3>
+              
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Příjmy v aktuálním roce:</span>
+                  <span className="font-mono text-slate-200">{formatCurrency(stats.currentYearTurnover)}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Uplatněné výdaje (60 %):</span>
+                  <span className="font-mono text-rose-400">− {formatCurrency(stats.pausalExpenses)}</span>
+                </div>
+                <div className="flex justify-between text-slate-300 border-t border-slate-800 pt-2 font-bold">
+                  <span>Základ daně (odhad):</span>
+                  <span className="font-mono">{formatCurrency(stats.taxBase)}</span>
+                </div>
+                <div className="flex justify-between text-amber-400 font-bold border-t border-slate-800 pt-2 text-sm mt-1">
+                  <span>Vypočtená daň (15 %):</span>
+                  <span className="font-mono">{formatCurrency(stats.estimatedTax15)}</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Částka nezahrnuje slevu na poplatníka (obvykle 30 840 Kč ročně) ani další možné odpočty (děti, úroky). Slouží k orientační představě o zisku.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Work Type Breakdown */}
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow space-y-4">
             <h3 className="text-sm font-black text-white flex items-center gap-2">
               <Flame className="w-4 h-4 text-amber-400" />
@@ -301,7 +401,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
               })}
             </div>
           </div>
-
+        </div>
         </div>
       )}
     </div>

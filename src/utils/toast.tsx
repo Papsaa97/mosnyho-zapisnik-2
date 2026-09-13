@@ -4,7 +4,9 @@
  */
 import React, { useState, useCallback, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Trash2, FileCheck2, X } from 'lucide-react';
-import { ToastContext, Toast, ToastVariant } from './toastContext';
+import { ToastContext, Toast, ToastVariant, useToast } from './toastContext';
+
+export { useToast, type Toast, type ToastVariant };
 
 const ICON_MAP: Record<ToastVariant, React.ElementType> = {
   success: CheckCircle2,

@@ -5,8 +5,8 @@ import {
   Edit3
 } from 'lucide-react';
 import { WorkEntry, WorkEntryStatus } from '../../types';
-
 import { formatCurrency, formatHours } from '../../services/pricingEngine';
+import { useToast } from '../../utils/toast';
 
 interface BillingKanbanProps {
   entries: WorkEntry[];
@@ -66,6 +66,26 @@ export const BillingKanban: React.FC<BillingKanbanProps> = ({
   onUpdateStatus,
   onEdit
 }) => {
+  const { showToast } = useToast();
+
+  const handleCopyReminder = (entry: WorkEntry, daysDue: number) => {
+    const text = `Dobrý den,
+
+rád bych Vás upozornil na nezaplacenou fakturu č. ${entry.invoiceNumber || ''} (zakázka: ${entry.projectName}), která je aktuálně ${Math.abs(daysDue)} dní po splatnosti. 
+Dlužná částka činí ${formatCurrency(entry.totalEarnings)}.
+
+Prosím o informaci, v jakém stavu se platba nachází.
+Pokud jste již platbu odeslali, považujte tuto zprávu za bezpředmětnou.
+
+Předem děkuji za brzké vyřízení.
+S pozdravem.`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Text upomínky byl zkopírován do schránky', 'success');
+    }).catch(() => {
+      showToast('Nepodařilo se zkopírovat text', 'error');
+    });
+  };
   const getDaysUntilDue = (dueDateStr?: string) => {
     if (!dueDateStr) return null;
     const due = new Date(dueDateStr);
@@ -169,14 +189,26 @@ export const BillingKanban: React.FC<BillingKanbanProps> = ({
 
                         {/* Invoice & Due date alert */}
                         {entry.invoiceNumber && (
-                          <div className="pt-1 border-t border-slate-900 flex items-center justify-between text-[10px]">
-                            <span className="text-purple-400 font-semibold">{entry.invoiceNumber}</span>
-                            {daysDue !== null && (
-                              <span className={`font-bold ${
-                                daysDue < 0 ? 'text-rose-400 animate-pulse' : daysDue <= 3 ? 'text-amber-400' : 'text-emerald-400'
-                              }`}>
-                                {daysDue < 0 ? `Po splatnosti ${Math.abs(daysDue)} d!` : `Splatnost za ${daysDue} d`}
-                              </span>
+                          <div className="pt-1 border-t border-slate-900 flex flex-col gap-1 text-[10px]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-400 font-semibold">{entry.invoiceNumber}</span>
+                              {daysDue !== null && (
+                                <span className={`font-bold ${
+                                  daysDue < 0 ? 'text-rose-400 animate-pulse' : daysDue <= 3 ? 'text-amber-400' : 'text-emerald-400'
+                                }`}>
+                                  {daysDue < 0 ? `Po splatnosti ${Math.abs(daysDue)} d!` : `Splatnost za ${daysDue} d`}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {daysDue !== null && daysDue < 0 && col.id === 'invoiced' && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyReminder(entry, daysDue)}
+                                className="w-full mt-1 py-1 px-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded text-center font-bold transition-colors"
+                              >
+                                Kopírovat upomínku
+                              </button>
                             )}
                           </div>
                         )}

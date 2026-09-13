@@ -14,6 +14,14 @@
   }
 }
 
+@utility min-h-touch {
+  min-height: 44px;
+}
+
+@utility min-h-touch-lg {
+  min-height: 48px;
+}
+
 @layer utilities {
   /* Thin scrollbars for timelines, kanban columns & filter chip rows */
   .scrollbar-thin {
@@ -242,4 +250,29 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  .print-signature-box {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .signature-img {
+    max-height: 56px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    display: block;
+    margin: 0 auto;
+    filter: contrast(1.15);
+  }
 }
+
+.print-signature-box {
+  break-inside: avoid;
+}
+
+.signature-img {
+  max-height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+

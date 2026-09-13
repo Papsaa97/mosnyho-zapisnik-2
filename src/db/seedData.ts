@@ -29,8 +29,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     defaultTravelOnlyRate: 350,     // Kč/h čas na cestě (řízení)
     defaultRatePerKm: 11,           // Kč/km náhrada za opotřebení + PHM dodávky
     defaultTravelHourlyRate: 350,   // Kč/h za volantem
-    dietHalfDayRate: 170,           // 5-12 hod
-    dietFullDayRate: 290,           // nad 12 hod
+    dietHalfDayRate: 166,           // 5-12 hod (Pásmo 1 MPSV)
+    dietFullDayRate: 256,           // 12-18 hod (Pásmo 2 MPSV)
+    dietOver18Rate: 398,            // nad 18 hod (Pásmo 3 MPSV)
     surcharges: {
       weekendPercent: 25,
       nightPercent: 20,
@@ -51,7 +52,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
       contactPerson: 'Ing. Karel Dvořák (hlavní stavbyvedoucí)',
       phone: '+420 602 114 887',
       email: 'dvorak.karel@metrostav.cz',
-      defaultKm: 95
+      defaultKm: 95,
+      isPdpDefault: true
     },
     {
       id: 'client_technomont',
@@ -98,6 +100,19 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
     defaultRatePerKm: 11,
     defaultTravelHourlyRate: 350,
     weldingMethod: 'MIG_MAG',
+    weldingPassport: {
+      methodCode: '135',
+      methodName: 'MAG – Obloukové svařování tavící se elektrodou v aktivním plynu',
+      baseMaterialGrade: 'S235JR',
+      materialThickness: '10.0 mm',
+      shieldingGas: 'CORGON 18 (82% Ar + 18% CO2, ISO 14175 M21)',
+      fillerBatch: 'ESAB OK Autrod 12.51, Ø 1.2 mm, šarže #E94120',
+      rootBackingGas: false,
+      welderCertNumber: 'CZ-9606-1-135-P-FW-FM1-S-t10',
+      weldInspectionVT: 'passed_B',
+    },
+    activityTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
+    workActionTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
     notesTemplate: 'Dílenská příprava a stehování dle výkresové dokumentace.',
     isDefault: true
   },
@@ -111,6 +126,19 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
     defaultRatePerKm: 11,
     defaultTravelHourlyRate: 350,
     weldingMethod: 'TIG',
+    weldingPassport: {
+      methodCode: '141',
+      methodName: 'TIG – Obloukové svařování wolframovou elektrodou v inertním plynu',
+      baseMaterialGrade: '1.4404 (AISI 316L nerez)',
+      materialThickness: '3.0 mm',
+      shieldingGas: 'Argon 4.6 (100% Ar, ISO 14175 I1)',
+      fillerBatch: 'Böhler Thermanit GE-316L, Ø 2.0 mm, šarže #849102',
+      rootBackingGas: true,
+      welderCertNumber: 'CZ-9606-1-141-T-BW-FM5-S-s3.0',
+      weldInspectionVT: 'passed_B',
+    },
+    activityTags: ['Příprava', 'Svařování', 'Montáž ve výškách', 'Kotvení'],
+    workActionTags: ['Příprava', 'Svařování', 'Montáž ve výškách', 'Kotvení'],
     notesTemplate: 'Montáž a zavaření ve výšce z montážní plošiny. Vizuální kontrola svárů VT2.'
   },
   {
@@ -123,6 +151,19 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
     defaultRatePerKm: 11,
     defaultTravelHourlyRate: 450,
     weldingMethod: 'MMA',
+    weldingPassport: {
+      methodCode: '111',
+      methodName: 'MMA – Ruční obloukové svařování obalenou elektrodou',
+      baseMaterialGrade: 'HARDOX 450',
+      materialThickness: '20.0 mm',
+      shieldingGas: 'Bez ochranného plynu (tavidlo obalu elektrody)',
+      fillerBatch: 'Böhler FOX EV 50, Ø 3.2 mm, šarže #H58201',
+      rootBackingGas: false,
+      welderCertNumber: 'CZ-9606-1-111-P-BW-FM2-B-t20',
+      weldInspectionVT: 'passed_C',
+    },
+    activityTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
+    workActionTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
     notesTemplate: 'Havarijní oprava prasklého rámu/potrubí v době provozní odstávky.'
   },
   {
@@ -135,6 +176,19 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
     defaultRatePerKm: 11,
     defaultTravelHourlyRate: 350,
     weldingMethod: 'TIG',
+    weldingPassport: {
+      methodCode: '141',
+      methodName: 'TIG – Obloukové svařování wolframovou elektrodou v inertním plynu',
+      baseMaterialGrade: '1.4404 (AISI 316L nerez)',
+      materialThickness: '3.0 mm',
+      shieldingGas: 'Argon 4.6 (100% Ar, ISO 14175 I1)',
+      fillerBatch: 'Böhler Thermanit GE-316L, Ø 2.4 mm, šarže #849102',
+      rootBackingGas: true,
+      welderCertNumber: 'CZ-9606-1-141-T-BW-FM5-S-s3.0-D50-H-L045',
+      weldInspectionVT: 'passed_B',
+    },
+    activityTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
+    workActionTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
     notesTemplate: 'Svařování metodou 141 (TIG) s formováním kořene argonem. Pozice H-L045.'
   },
   {
@@ -147,6 +201,18 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
     defaultRatePerKm: 11,
     defaultTravelHourlyRate: 350,
     weldingMethod: 'NONE',
+    weldingPassport: {
+      methodCode: 'NONE',
+      methodName: 'Bez svářečských prací – převoz a závoz materiálu',
+      baseMaterialGrade: 'N/A',
+      materialThickness: 'N/A',
+      shieldingGas: 'N/A',
+      fillerBatch: 'N/A',
+      rootBackingGas: false,
+      weldInspectionVT: 'not_required',
+    },
+    activityTags: ['Příprava'],
+    workActionTags: ['Příprava'],
     notesTemplate: 'Převoz konstrukčních prvků na žárové zinkování.'
   }
 ];
@@ -173,17 +239,59 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
       ratePerKm: 11,
       travelTimeHours: 1.5,
       travelHourlyRate: 350,
-      dietAllowance: 170, // 5-12h
-      dietType: 'half_day'
+      dietAllowance: 166, // 5-12h (Pásmo 1 MPSV)
+      dietType: 'band_1'
     },
     extraCosts: [
       { id: 'cost-1', description: 'Formovací plyn Argon 4.6 (1 lahev doplatková)', amount: 650 },
       { id: 'cost-2', description: 'Přídavný drát ER316L 2.0mm (2 kg)', amount: 480 }
     ],
-    totalEarnings: 875 * 7.75 + (85 * 11 + 1.5 * 350 + 170) + 1130, // 6781.25 + 1630 + 1130 = 9541
+    totalEarnings: Math.round(8.75 * 775 + (85 * 11 + 1.5 * 350 + 166) + 1130),
     status: 'invoiced',
+    isPdp: true,
     notes: 'Svařování potrubní větve chlazení ve výšce z nůžkové plošiny. Vizuální zkouška VT provedena bez vad.',
+    activityTags: ['Příprava', 'Svařování', 'Montáž ve výškách'],
+    workActionTags: ['Příprava', 'Svařování', 'Montáž ve výškách'],
+    consumableSlip: {
+      overheadMarkupPercent: 15,
+      fixedOverheadFee: 0,
+      totalMaterialCost: 1130,
+      totalBilledAmount: 1130,
+      items: [
+        {
+          id: 'cost-1',
+          category: 'technical_gases',
+          name: 'Formovací plyn Argon 4.6 (1 lahev doplatková)',
+          quantity: 1,
+          unit: 'lahev',
+          unitPrice: 650,
+          markupPercent: 0,
+          billedPrice: 650
+        },
+        {
+          id: 'cost-2',
+          category: 'welding_consumables',
+          name: 'Přídavný drát ER316L 2.0mm (2 kg)',
+          quantity: 2,
+          unit: 'kg',
+          unitPrice: 240,
+          markupPercent: 0,
+          billedPrice: 480
+        }
+      ]
+    },
     weldingMethod: 'TIG',
+    weldingPassport: {
+      methodCode: '141',
+      methodName: 'TIG – Obloukové svařování wolframovou elektrodou v inertním plynu',
+      baseMaterialGrade: '1.4404 (AISI 316L nerez)',
+      materialThickness: '3.0 mm',
+      shieldingGas: 'Argon 4.6 (100% Ar, ISO 14175 I1)',
+      fillerBatch: 'Böhler Thermanit GE-316L, Ø 2.0 mm, šarže #849102',
+      rootBackingGas: true,
+      welderCertNumber: 'CZ-9606-1-141-T-BW-FM5-S-s3.0-D50-H-L045',
+      weldInspectionVT: 'passed_B',
+    },
     invoiceNumber: 'VF-2026/028',
     invoiceDate: '2026-03-05',
     paymentDueDate: '2026-03-25',
@@ -211,16 +319,48 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
       ratePerKm: 11,
       travelTimeHours: 1.5,
       travelHourlyRate: 350,
-      dietAllowance: 170,
-      dietType: 'half_day'
+      dietAllowance: 166,
+      dietType: 'band_1'
     },
     extraCosts: [
       { id: 'cost-3', description: 'Kotvy Hilti M12 pro nerezové konzole (20 ks)', amount: 760 }
     ],
-    totalEarnings: Math.round(9.5 * 775 + (85 * 11 + 1.5 * 350 + 170) + 760),
+    totalEarnings: Math.round(9.5 * 775 + (85 * 11 + 1.5 * 350 + 166) + 760),
     status: 'invoiced',
+    isPdp: true,
     notes: 'Montáž a ukotvení podpěrných třmenů potrubí. Tlaková zkouška úseku 1 splněna.',
+    activityTags: ['Příprava', 'Montáž ve výškách', 'Kotvení'],
+    workActionTags: ['Příprava', 'Montáž ve výškách', 'Kotvení'],
+    consumableSlip: {
+      overheadMarkupPercent: 0,
+      fixedOverheadFee: 0,
+      totalMaterialCost: 760,
+      totalBilledAmount: 760,
+      items: [
+        {
+          id: 'cost-3',
+          category: 'anchors',
+          name: 'Kotvy Hilti M12 pro nerezové konzole (20 ks)',
+          quantity: 20,
+          unit: 'ks',
+          unitPrice: 38,
+          markupPercent: 0,
+          billedPrice: 760
+        }
+      ]
+    },
     weldingMethod: 'TIG',
+    weldingPassport: {
+      methodCode: '141',
+      methodName: 'TIG – Obloukové svařování wolframovou elektrodou v inertním plynu',
+      baseMaterialGrade: '1.4404 (AISI 316L nerez)',
+      materialThickness: '3.0 mm',
+      shieldingGas: 'Argon 4.6 (100% Ar, ISO 14175 I1)',
+      fillerBatch: 'Böhler Thermanit GE-316L, Ø 2.0 mm, šarže #849102',
+      rootBackingGas: true,
+      welderCertNumber: 'CZ-9606-1-141-T-BW-FM5-S-s3.0-D50-H-L045',
+      weldInspectionVT: 'passed_B',
+    },
     invoiceNumber: 'VF-2026/028',
     invoiceDate: '2026-03-05',
     paymentDueDate: '2026-03-25',
@@ -248,17 +388,30 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
       ratePerKm: 11,
       travelTimeHours: 0.5,
       travelHourlyRate: 350,
-      dietAllowance: 170,
-      dietType: 'half_day'
+      dietAllowance: 166,
+      dietType: 'band_1'
     },
     extraCosts: [
       { id: 'cost-4', description: 'Směsný plyn CORGON 18 (podíl)', amount: 450 },
       { id: 'cost-5', description: 'Drát SG2 1.2mm cívka 15kg', amount: 1100 }
     ],
-    totalEarnings: Math.round(8.0 * 480 + (22 * 11 + 0.5 * 350 + 170) + 1550),
+    totalEarnings: Math.round(8.0 * 480 + (22 * 11 + 0.5 * 350 + 166) + 1550),
     status: 'paid',
     notes: 'Svařování kotevních desek a výztuh na HEB 240. Vícevrstvé koutové sváry a=8mm. Připraveno na tryskání.',
+    activityTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
+    workActionTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
     weldingMethod: 'MIG_MAG',
+    weldingPassport: {
+      methodCode: '135',
+      methodName: 'MAG – Obloukové svařování tavící se elektrodou v aktivním plynu',
+      baseMaterialGrade: 'S355J2+N',
+      materialThickness: '12.0 mm',
+      shieldingGas: 'CORGON 18 (82% Ar + 18% CO2, ISO 14175 M21)',
+      fillerBatch: 'ESAB OK Autrod 12.51, Ø 1.2 mm, šarže #E94120',
+      rootBackingGas: false,
+      welderCertNumber: 'CZ-9606-1-135-P-FW-FM1-S-t12-PB-ml',
+      weldInspectionVT: 'passed_B',
+    },
     invoiceNumber: 'VF-2026/027',
     invoiceDate: '2026-03-04',
     paymentDueDate: '2026-03-18',
@@ -287,17 +440,30 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
       ratePerKm: 11,
       travelTimeHours: 1.0,
       travelHourlyRate: 450,
-      dietAllowance: 170,
-      dietType: 'half_day'
+      dietAllowance: 166,
+      dietType: 'band_1'
     },
     extraCosts: [
       { id: 'cost-6', description: 'Speciální elektrody na litinu UTP 86 FN (1 balení)', amount: 1850 },
       { id: 'cost-7', description: 'Drážkovací uhlíky Gouging + předehřev hořákem', amount: 620 }
     ],
-    totalEarnings: Math.round(7.0 * 1530 + (36 * 11 + 1.0 * 450 + 170) + 2470),
+    totalEarnings: Math.round(7.0 * 1530 + (36 * 11 + 1.0 * 450 + 166) + 2470),
     status: 'submitted',
     notes: 'Vyřezání a vybroušení únavové praskliny v litinovém loži lisu. Postupný předehřev na 250°C a vykovávání každé vrstvy sváru. Provoz obnoven.',
+    activityTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
+    workActionTags: ['Příprava', 'Svařování', 'Broušení/začištění'],
     weldingMethod: 'MMA',
+    weldingPassport: {
+      methodCode: '111',
+      methodName: 'MMA – Ruční obloukové svařování obalenou elektrodou',
+      baseMaterialGrade: 'HARDOX 450',
+      materialThickness: '20.0 mm',
+      shieldingGas: 'Bez ochranného plynu (tavidlo obalu elektrody)',
+      fillerBatch: 'Böhler FOX EV 50, Ø 3.2 mm, šarže #H58201',
+      rootBackingGas: false,
+      welderCertNumber: 'CZ-9606-1-111-P-BW-FM2-B-t20',
+      weldInspectionVT: 'passed_C',
+    },
     createdAt: '2026-03-05T05:00:00.000Z',
     updatedAt: '2026-03-05T05:00:00.000Z'
   },
@@ -322,16 +488,30 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
       ratePerKm: 11,
       travelTimeHours: 1.5,
       travelHourlyRate: 350,
-      dietAllowance: 170,
-      dietType: 'half_day'
+      dietAllowance: 166,
+      dietType: 'band_1'
     },
     extraCosts: [
       { id: 'cost-8', description: 'Spojovací materiál pevnostní 8.8 pozink M16x60 (50 ks)', amount: 890 }
     ],
-    totalEarnings: Math.round(8.0 * 775 + (85 * 11 + 1.5 * 350 + 170) + 890),
+    totalEarnings: Math.round(8.0 * 775 + (85 * 11 + 1.5 * 350 + 166) + 890),
     status: 'draft',
+    isPdp: true,
     notes: 'Usazení dílů lávky jeřábem, svrtání patek a zavaření styčníkových plechů. Počasí: silný vítr, nutno jistit vazačským lanem.',
+    activityTags: ['Příprava', 'Svařování', 'Montáž ve výškách', 'Kotvení'],
+    workActionTags: ['Příprava', 'Svařování', 'Montáž ve výškách', 'Kotvení'],
     weldingMethod: 'COMBINED',
+    weldingPassport: {
+      methodCode: '141_135',
+      methodName: 'Kombinovaný proces: TIG kořen (141) + MAG výplň a krycí vrstva (135)',
+      baseMaterialGrade: 'S355J2',
+      materialThickness: '10.0 mm',
+      shieldingGas: 'Argon 4.6 + CORGON 18',
+      fillerBatch: 'Böhler EMK 6 (TIG) / OK Autrod 12.51 (MAG)',
+      rootBackingGas: false,
+      welderCertNumber: 'CZ-9606-1-141/135-T-BW',
+      weldInspectionVT: 'passed_B',
+    },
     createdAt: '2026-03-06T16:30:00.000Z',
     updatedAt: '2026-03-06T16:30:00.000Z'
   }

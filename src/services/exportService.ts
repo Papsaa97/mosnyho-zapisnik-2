@@ -52,7 +52,8 @@ export function exportEntriesToCSV(entries: WorkEntry[], fileNameSuffix = 'vykaz
       (entry.travel.distanceKm * entry.travel.ratePerKm) +
       (entry.travel.travelTimeHours * entry.travel.travelHourlyRate)
     );
-    const extraCostsTotal = (entry.extraCosts || []).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+    const extraCostsTotal = ((entry.extraCosts || []).reduce((sum, i) => sum + (Number(i.amount) || 0), 0)) +
+      (entry.consumableSlip?.totalBilledAmount || 0);
     const surchargesText = entry.pricing.shiftSurcharges.join(', ') || 'Žádné';
 
     const clean = (val: unknown) => {
@@ -93,11 +94,11 @@ export function exportEntriesToCSV(entries: WorkEntry[], fileNameSuffix = 'vykaz
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `Mosny_${fileNameSuffix}_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `Vykaz_${fileNameSuffix}_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 /**
@@ -123,26 +124,78 @@ export async function exportDatabaseBackupToJSON(): Promise<void> {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `Mosny_Zaloha_${new Date().toISOString().slice(0, 10)}.json`);
+  link.setAttribute('download', `Zaloha_Zapisnik_${new Date().toISOString().slice(0, 10)}.json`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 /**
- * Imports database from JSON backup file.
+ * Validates that a work entry has all required fields with correct types.
+ */
+function isValidWorkEntry(entry: unknown): boolean {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const e = entry as Record<string, unknown>;
+  return (
+    typeof e.id === 'string' &&
+    typeof e.date === 'string' &&
+    typeof e.totalHours === 'number' &&
+    typeof e.workType === 'string' &&
+    typeof e.status === 'string' &&
+    typeof e.pricing === 'object' && e.pricing !== null &&
+    typeof e.travel === 'object' && e.travel !== null
+  );
+}
+
+/**
+ * Sanitizes a string to prevent XSS (strips HTML tags).
+ */
+function sanitizeString(value: unknown): string {
+  if (typeof value !== 'string') return String(value ?? '');
+  return value.replace(/<[^>]*>/g, '');
+}
+
+/**
+ * Sanitizes all string fields in a work entry.
+ */
+function sanitizeEntry<T extends Record<string, unknown>>(entry: T): T {
+  const result = { ...entry };
+  for (const key in result) {
+    if (typeof result[key] === 'string') {
+      (result as Record<string, unknown>)[key] = sanitizeString(result[key]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Imports database from JSON backup file with validation and sanitization.
  */
 export async function importDatabaseBackupFromJSON(jsonString: string): Promise<boolean> {
   try {
     const data = JSON.parse(jsonString);
     if (!data.entries || !Array.isArray(data.entries)) {
-      throw new Error('Neplatný formát zálohy');
+      throw new Error('Neplatný formát zálohy: chybí pole entries');
+    }
+
+    // Validate all entries before importing
+    const invalidEntries = data.entries.filter((e: unknown) => !isValidWorkEntry(e));
+    if (invalidEntries.length > 0) {
+      console.warn(`[Import] ${invalidEntries.length} záznamů má neplatný formát a budou přeskočeny.`);
+    }
+
+    const validEntries = data.entries
+      .filter((e: unknown) => isValidWorkEntry(e))
+      .map((e: Record<string, unknown>) => sanitizeEntry(e));
+
+    if (validEntries.length === 0) {
+      throw new Error('Záloha neobsahuje žádné platné záznamy');
     }
 
     await db.transaction('rw', db.entries, db.presets, db.settings, async () => {
       await db.entries.clear();
-      await db.entries.bulkPut(data.entries);
+      await db.entries.bulkPut(validEntries);
 
       if (data.presets && Array.isArray(data.presets)) {
         await db.presets.clear();

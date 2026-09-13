@@ -34,3 +34,7 @@ dist.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Agent & Test cache
+.agents/
+.vitest/
