@@ -1,47 +1,35 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useReducer } from 'react';
+import FocusTrap from 'focus-trap-react';
 import { 
   X, 
   Save, 
-  Clock, 
-  MapPin, 
-  Wrench, 
   Flame, 
-  Truck, 
-  AlertTriangle, 
-  Calendar, 
-  DollarSign, 
-  Sparkles,
-  Layers,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Car,
-  Utensils,
-  FileCheck2,
-  Tag
+  Sparkles
 } from 'lucide-react';
 import { 
   WorkEntry, 
-  WorkType, 
   ShiftPreset, 
-  ShiftSurchargeType, 
-  WeldingMethod, 
-  ExtraCostItem, 
-  WorkEntryStatus,
-  AppSettings,
-  INPUT_LIMITS
+  AppSettings
 } from '../../types';
 import { 
   calculateNetHours, 
   calculateEffectiveHourlyRate, 
-  calculateGrandTotal, 
+  calculateGrandTotalWithMaterials, 
   calculateTravelTotal,
   calculateExtraCostsTotal,
   formatCurrency, 
-  isDateWeekend,
-  estimateDiet
+  isDateWeekend
 } from '../../services/pricingEngine';
-import { QuickBreakButtons } from './QuickBreakButtons';
+
+import { shiftFormReducer, createInitialState } from './shiftFormReducer';
+import { ProjectSection } from './sections/ProjectSection';
+import { TimeSection } from './sections/TimeSection';
+import { PricingSection } from './sections/PricingSection';
+import { TravelSection } from './sections/TravelSection';
+import { ExtrasSection } from './sections/ExtrasSection';
+import { StatusNotesSection } from './sections/StatusNotesSection';
+import { PhotoSection } from './sections/PhotoSection';
+import { useToast } from '../../utils/toast';
 
 interface ShiftModalFormProps {
   isOpen: boolean;
@@ -54,23 +42,6 @@ interface ShiftModalFormProps {
   existingEntries: WorkEntry[];
 }
 
-const COMMON_TAGS = [
-  'VT2 zkouška OK',
-  'Práce v plošině',
-  'Předehřev 250°C',
-  'Tlaková zkouška splněna',
-  'Formování kořene Argon',
-  'Zdržen jinou profesí'
-];
-
-const COMMON_EXTRAS = [
-  { description: 'Formovací plyn Argon 4.6 (lahev)', amount: 650 },
-  { description: 'Přídavný drát TIG ER316L (kg)', amount: 240 },
-  { description: 'Drát SG2 1.2mm cívka 15kg', amount: 1100 },
-  { description: 'Kotouče řezné 125x1.0 (balení 10ks)', amount: 350 },
-  { description: 'Kotevní materiál / svorníky M16', amount: 800 }
-];
-
 export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   isOpen,
   onClose,
@@ -81,98 +52,37 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   settings,
   existingEntries
 }) => {
-  const initialSource = editingEntry || initialValues;
-
-  // Form State
-  const [date, setDate] = useState<string>(
-    initialSource ? initialSource.date || new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
-  );
-  const [projectCode, setProjectCode] = useState<string>(
-    initialSource ? initialSource.projectCode || 'Hala-C' : 'Hala-C'
-  );
-  const [projectName, setProjectName] = useState<string>(
-    initialSource ? initialSource.projectName || '' : ''
-  );
-  const [clientName, setClientName] = useState<string>(
-    initialSource ? initialSource.clientName || (settings.clients[0]?.name || 'Metrostav DIZ s.r.o.') : (settings.clients[0]?.name || 'Metrostav DIZ s.r.o.')
-  );
-  const [workType, setWorkType] = useState<WorkType>(
-    initialSource ? initialSource.workType || 'site_assembly' : 'site_assembly'
-  );
-  const [weldingMethod, setWeldingMethod] = useState<WeldingMethod>(
-    initialSource ? (initialSource.weldingMethod || 'TIG') : 'TIG'
+  const { showToast } = useToast();
+  const [state, dispatch] = useReducer(
+    shiftFormReducer, 
+    null as any,
+    () => createInitialState(editingEntry, initialValues, settings)
   );
 
-  // Time
-  const [startTime, setStartTime] = useState<string>(
-    initialSource ? initialSource.startTime || '07:00' : '07:00'
-  );
-  const [endTime, setEndTime] = useState<string>(
-    initialSource ? initialSource.endTime || '16:00' : '16:00'
-  );
-  const [breakMinutes, setBreakMinutes] = useState<number>(
-    initialSource && initialSource.breakMinutes !== undefined ? initialSource.breakMinutes : 30
-  );
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
-  // Pricing
-  const [baseHourlyRate, setBaseHourlyRate] = useState<number>(
-    editingEntry ? editingEntry.pricing.baseHourlyRate : settings.rates.defaultSiteAssemblyRate
-  );
-  const [complexityMultiplier, setComplexityMultiplier] = useState<number>(
-    editingEntry ? editingEntry.pricing.complexityMultiplier : 1.0
-  );
-  const [shiftSurcharges, setShiftSurcharges] = useState<ShiftSurchargeType[]>(
-    editingEntry ? editingEntry.pricing.shiftSurcharges : []
-  );
-  const [isManualOverride, setIsManualOverride] = useState<boolean>(
-    editingEntry ? (editingEntry.pricing.isManualOverride || false) : false
-  );
-  const [manualTotalOverride, setManualTotalOverride] = useState<number>(
-    editingEntry ? (editingEntry.pricing.manualTotalOverride || 0) : 0
-  );
-
-  // Travel
-  const [distanceKm, setDistanceKm] = useState<number>(
-    editingEntry ? editingEntry.travel.distanceKm : 0
-  );
-  const [ratePerKm, setRatePerKm] = useState<number>(
-    editingEntry ? editingEntry.travel.ratePerKm : settings.rates.defaultRatePerKm
-  );
-  const [travelTimeHours, setTravelTimeHours] = useState<number>(
-    editingEntry ? editingEntry.travel.travelTimeHours : 0
-  );
-  const [travelHourlyRate, setTravelHourlyRate] = useState<number>(
-    editingEntry ? editingEntry.travel.travelHourlyRate : settings.rates.defaultTravelHourlyRate
-  );
-  const [dietAllowance, setDietAllowance] = useState<number>(
-    editingEntry ? editingEntry.travel.dietAllowance : 0
-  );
-  const [dietType, setDietType] = useState<'none' | 'half_day' | 'full_day' | 'custom'>(
-    editingEntry ? (editingEntry.travel.dietType || 'none') : 'none'
-  );
-
-  // Extras & Notes
-  const [extraCosts, setExtraCosts] = useState<ExtraCostItem[]>(
-    editingEntry ? (editingEntry.extraCosts || []) : []
-  );
-  const [notes, setNotes] = useState<string>(
-    initialSource ? initialSource.notes || '' : ''
-  );
-  const [status, setStatus] = useState<WorkEntryStatus>(
-    editingEntry ? editingEntry.status : 'draft'
-  );
-  const [invoiceNumber, setInvoiceNumber] = useState<string>(
-    editingEntry ? (editingEntry.invoiceNumber || '') : ''
-  );
+  // Reset form when editing entry or modal visibility changes
+  useEffect(() => {
+    if (isOpen) {
+      dispatch({ type: 'RESET', state: createInitialState(editingEntry, initialValues, settings) });
+    }
+  }, [isOpen, editingEntry, initialValues, settings]);
 
   // Auto detect weekend when date changes
   useEffect(() => {
-    if (!editingEntry && isDateWeekend(date)) {
-      if (!shiftSurcharges.includes('weekend')) {
-        setShiftSurcharges(prev => [...prev, 'weekend']);
+    if (!editingEntry && isDateWeekend(state.date)) {
+      if (!state.shiftSurcharges.includes('weekend')) {
+        dispatch({ type: 'TOGGLE_SURCHARGE', surcharge: 'weekend' });
       }
     }
-  }, [date, editingEntry]);
+  }, [state.date, editingEntry, state.shiftSurcharges]);
 
   // Client suggestions
   const clientSuggestions = useMemo(() => {
@@ -191,165 +101,141 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
 
   // Calculations
   const totalHours = useMemo(() => {
-    return calculateNetHours(startTime, endTime, breakMinutes);
-  }, [startTime, endTime, breakMinutes]);
+    return calculateNetHours(state.startTime, state.endTime, state.breakMinutes);
+  }, [state.startTime, state.endTime, state.breakMinutes]);
 
   const calculatedHourlyRate = useMemo(() => {
     return calculateEffectiveHourlyRate(
-      baseHourlyRate,
-      complexityMultiplier,
-      shiftSurcharges,
+      state.baseHourlyRate,
+      state.complexityMultiplier,
+      state.shiftSurcharges,
       settings.rates.surcharges
     );
-  }, [baseHourlyRate, complexityMultiplier, shiftSurcharges, settings.rates.surcharges]);
+  }, [state.baseHourlyRate, state.complexityMultiplier, state.shiftSurcharges, settings.rates.surcharges]);
 
   const travelTotal = useMemo(() => {
-    return calculateTravelTotal(distanceKm, ratePerKm, travelTimeHours, travelHourlyRate, dietAllowance);
-  }, [distanceKm, ratePerKm, travelTimeHours, travelHourlyRate, dietAllowance]);
+    return calculateTravelTotal(state.distanceKm, state.ratePerKm, state.travelTimeHours, state.travelHourlyRate, state.dietAllowance);
+  }, [state.distanceKm, state.ratePerKm, state.travelTimeHours, state.travelHourlyRate, state.dietAllowance]);
 
   const extrasTotal = useMemo(() => {
-    return calculateExtraCostsTotal(extraCosts);
-  }, [extraCosts]);
+    return calculateExtraCostsTotal(state.extraCosts);
+  }, [state.extraCosts]);
+
+  const materialsTotal = useMemo(() => {
+    return state.consumableSlip?.totalBilledAmount || 0;
+  }, [state.consumableSlip]);
 
   const grandTotal = useMemo(() => {
-    return calculateGrandTotal({
+    return calculateGrandTotalWithMaterials({
       totalHours,
       pricing: {
         calculatedHourlyRate,
-        manualTotalOverride,
-        isManualOverride
+        manualTotalOverride: state.manualTotalOverride,
+        isManualOverride: state.isManualOverride
       },
       travel: {
-        distanceKm,
-        ratePerKm,
-        travelTimeHours,
-        travelHourlyRate,
-        dietAllowance
+        distanceKm: state.distanceKm,
+        ratePerKm: state.ratePerKm,
+        travelTimeHours: state.travelTimeHours,
+        travelHourlyRate: state.travelHourlyRate,
+        dietAllowance: state.dietAllowance
       },
-      extraCosts
+      extraCosts: state.extraCosts,
+      consumableSlip: state.consumableSlip
     });
-  }, [totalHours, calculatedHourlyRate, manualTotalOverride, isManualOverride, distanceKm, ratePerKm, travelTimeHours, travelHourlyRate, dietAllowance, extraCosts]);
+  }, [totalHours, calculatedHourlyRate, state.manualTotalOverride, state.isManualOverride, state.distanceKm, state.ratePerKm, state.travelTimeHours, state.travelHourlyRate, state.dietAllowance, state.extraCosts, state.consumableSlip]);
 
   // Apply a preset
   const handleApplyPreset = (preset: ShiftPreset) => {
-    setWorkType(preset.workType);
-    setBaseHourlyRate(preset.baseHourlyRate);
-    setComplexityMultiplier(preset.complexityMultiplier);
-    setBreakMinutes(preset.defaultBreakMinutes);
-    setRatePerKm(preset.defaultRatePerKm);
-    setTravelHourlyRate(preset.defaultTravelHourlyRate);
-    if (preset.weldingMethod) {
-      setWeldingMethod(preset.weldingMethod);
-    }
-    if (preset.notesTemplate && !notes) {
-      setNotes(preset.notesTemplate);
-    }
-  };
-
-  // Toggle Surcharge
-  const toggleSurcharge = (type: ShiftSurchargeType) => {
-    setShiftSurcharges(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
-
-  // Handle Diet Preset Click
-  const handleDietClick = (type: 'none' | 'half_day' | 'full_day') => {
-    setDietType(type);
-    if (type === 'none') setDietAllowance(0);
-    if (type === 'half_day') setDietAllowance(settings.rates.dietHalfDayRate);
-    if (type === 'full_day') setDietAllowance(settings.rates.dietFullDayRate);
-  };
-
-  // Auto estimate diet
-  const handleAutoDiet = () => {
-    const totalDuration = totalHours + travelTimeHours;
-    const est = estimateDiet(totalDuration, settings.rates);
-    setDietAllowance(est.allowance);
-    setDietType(est.type);
-  };
-
-  // Add extra cost row
-  const handleAddExtra = (description: string, amount: number) => {
-    setExtraCosts(prev => [
-      ...prev,
-      { id: `extra-${Date.now()}-${Math.random()}`, description, amount }
-    ]);
-  };
-
-  const handleRemoveExtra = (id: string) => {
-    setExtraCosts(prev => prev.filter(i => i.id !== id));
-  };
-
-  // Append note tag
-  const appendNoteTag = (tag: string) => {
-    setNotes(prev => (prev ? `${prev} | ${tag}` : tag));
+    dispatch({
+      type: 'APPLY_PRESET',
+      preset: {
+        workType: preset.workType,
+        baseHourlyRate: preset.baseHourlyRate,
+        complexityMultiplier: preset.complexityMultiplier,
+        breakMinutes: preset.defaultBreakMinutes,
+        ratePerKm: preset.defaultRatePerKm,
+        travelHourlyRate: preset.defaultTravelHourlyRate,
+        weldingMethod: preset.weldingMethod || state.weldingMethod,
+        weldingPassport: preset.weldingPassport || state.weldingPassport,
+        consumableSlip: preset.consumableSlip || state.consumableSlip,
+        activityTags: preset.activityTags || preset.workActionTags || state.activityTags,
+        photos: preset.photos || state.photos,
+        notes: (!state.notes && preset.notesTemplate) ? preset.notesTemplate : state.notes
+      }
+    });
   };
 
   // Validation: computed time error
   const timeValidationError = useMemo(() => {
-    if (!startTime || !endTime) return null;
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTime.split(':').map(Number);
+    if (!state.startTime || !state.endTime) return null;
+    const [sh, sm] = state.startTime.split(':').map(Number);
+    const [eh, em] = state.endTime.split(':').map(Number);
     if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
 
     const startMin = sh * 60 + sm;
     let endMin = eh * 60 + em;
-    // Allow overnight shifts (end < start means next day, handled in calculateNetHours)
-    // But warn if net hours would be <= 0 and it doesn't look like an overnight shift
     if (endMin === startMin) return 'Konec směny musí být jiný čas než začátek.';
 
-    // Check if break exceeds total duration
     const totalMin = endMin >= startMin ? endMin - startMin : (24 * 60 - startMin) + endMin;
-    if (breakMinutes >= totalMin) {
-      return `Pauza (${breakMinutes} min) nesmí přesáhnout celkovou délku směny (${totalMin} min).`;
+    if (state.breakMinutes >= totalMin) {
+      return `Pauza (${state.breakMinutes} min) nesmí přesáhnout celkovou délku směny (${totalMin} min).`;
     }
     return null;
-  }, [startTime, endTime, breakMinutes]);
+  }, [state.startTime, state.endTime, state.breakMinutes]);
 
   // Save handler
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (timeValidationError) {
-      alert(`Chyba v časech: ${timeValidationError}`);
+      showToast(`Chyba v časech: ${timeValidationError}`, 'error');
       return;
     }
 
     const entryToSave: WorkEntry = {
       id: editingEntry ? editingEntry.id : `entry-${Date.now()}`,
-      date,
-      projectCode: projectCode.trim() || 'Zakázka',
-      projectName: projectName.trim() || (projectCode.trim() || 'Montážní práce'),
-      clientName: clientName.trim() || 'Odběratel',
-      workType,
-      startTime,
-      endTime,
-      breakMinutes,
+      date: state.date,
+      projectCode: state.projectCode.trim() || 'Zakázka',
+      projectName: state.projectName.trim() || (state.projectCode.trim() || 'Montážní práce'),
+      clientName: state.clientName.trim() || 'Odběratel',
+      workType: state.workType,
+      startTime: state.startTime,
+      endTime: state.endTime,
+      breakMinutes: state.breakMinutes,
       totalHours,
       pricing: {
-        baseHourlyRate,
-        complexityMultiplier,
-        shiftSurcharges,
+        baseHourlyRate: state.baseHourlyRate,
+        complexityMultiplier: state.complexityMultiplier,
+        shiftSurcharges: state.shiftSurcharges,
         calculatedHourlyRate,
-        manualTotalOverride: isManualOverride ? manualTotalOverride : undefined,
-        isManualOverride
+        manualTotalOverride: state.isManualOverride ? state.manualTotalOverride : undefined,
+        isManualOverride: state.isManualOverride
       },
+      isPdp: state.isPdp,
       travel: {
-        distanceKm,
-        ratePerKm,
-        travelTimeHours,
-        travelHourlyRate,
-        dietAllowance,
-        dietType
+        distanceKm: state.distanceKm,
+        ratePerKm: state.ratePerKm,
+        travelTimeHours: state.travelTimeHours,
+        travelHourlyRate: state.travelHourlyRate,
+        dietAllowance: state.dietAllowance,
+        dietType: state.dietType,
+        isManualDiet: state.isManualDiet,
+        dietBandApplied: state.dietBandApplied,
+        customDietRate: state.customDietRate
       },
-      extraCosts,
+      extraCosts: state.extraCosts,
+      consumableSlip: state.consumableSlip,
+      activityTags: state.activityTags,
+      workActionTags: state.activityTags,
+      photos: state.photos,
       totalEarnings: grandTotal,
-      status,
-      notes: notes.trim(),
-      weldingMethod,
+      status: state.status,
+      notes: state.notes.trim(),
+      weldingMethod: state.weldingMethod,
+      weldingPassport: state.weldingPassport,
       timeline: editingEntry?.timeline || initialValues?.timeline,
-      invoiceNumber: invoiceNumber.trim() || undefined,
+      invoiceNumber: state.invoiceNumber.trim() || undefined,
       createdAt: editingEntry ? editingEntry.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -357,18 +243,15 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     await onSave(entryToSave);
     onClose();
   }, [
-    timeValidationError, editingEntry, date, projectCode, projectName, clientName,
-    workType, startTime, endTime, breakMinutes, totalHours, baseHourlyRate,
-    complexityMultiplier, shiftSurcharges, calculatedHourlyRate, isManualOverride,
-    manualTotalOverride, distanceKm, ratePerKm, travelTimeHours, travelHourlyRate,
-    dietAllowance, dietType, extraCosts, grandTotal, status, notes, weldingMethod,
-    initialValues, invoiceNumber, onSave, onClose
+    timeValidationError, editingEntry, state, totalHours, calculatedHourlyRate,
+    grandTotal, initialValues, onSave, onClose, showToast
   ]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+      <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false }}>
       <div 
         role="dialog"
         aria-modal="true"
@@ -425,607 +308,53 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
             </div>
           </div>
 
-          {/* Section 1: Datum, Odběratel, Projekt */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Datum */}
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                  Datum směny *
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                  style={{ minHeight: '44px' }}
-                />
-                {isDateWeekend(date) && (
-                  <span className="text-[11px] text-amber-400 font-bold mt-1 inline-flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Víkendový den
-                  </span>
-                )}
-              </div>
+          <ProjectSection 
+            state={state} 
+            dispatch={dispatch} 
+            clientSuggestions={clientSuggestions} 
+            projectSuggestions={projectSuggestions} 
+            clients={settings.clients}
+          />
+          
+          <TimeSection 
+            state={state} 
+            dispatch={dispatch} 
+            totalHours={totalHours} 
+            timeValidationError={timeValidationError} 
+          />
+          
+          <PricingSection 
+            state={state} 
+            dispatch={dispatch} 
+            calculatedHourlyRate={calculatedHourlyRate} 
+            settings={settings} 
+          />
+          
+          <TravelSection 
+            state={state} 
+            dispatch={dispatch} 
+            travelTotal={travelTotal} 
+            totalHours={totalHours} 
+            settings={settings} 
+          />
+          
+          <ExtrasSection 
+            state={state} 
+            dispatch={dispatch} 
+            extrasTotal={extrasTotal} 
+          />
+          
+          <StatusNotesSection 
+            state={state} 
+            dispatch={dispatch} 
+          />
 
-              {/* Odběratel */}
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Odběratel / Firma *
-                </label>
-                <input
-                  type="text"
-                  list="client-list"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="např. Metrostav DIZ"
-                  required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
-                  style={{ minHeight: '44px' }}
-                />
-                <datalist id="client-list">
-                  {clientSuggestions.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
-              </div>
+          <PhotoSection
+            state={state}
+            dispatch={dispatch}
+            contractorName={settings.contractor.name}
+          />
 
-              {/* Kód / Název projektu */}
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Kód / Název zakázky *
-                </label>
-                <input
-                  type="text"
-                  list="project-list"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="např. Hala C – potrubí DN150"
-                  required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
-                  style={{ minHeight: '44px' }}
-                />
-                <datalist id="project-list">
-                  {projectSuggestions.map((p) => (
-                    <option key={p} value={p} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-
-            {/* Typ činnosti (Velké dlaždice pro palec) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5 text-amber-400" />
-                Typ činnosti
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { type: 'workshop_welding' as WorkType, label: 'Dílna – svařování', icon: Flame },
-                  { type: 'site_assembly' as WorkType, label: 'Montáž stavba', icon: Wrench },
-                  { type: 'service_emergency' as WorkType, label: 'Pohotovost / Havárie', icon: AlertTriangle },
-                  { type: 'travel_only' as WorkType, label: 'Pouze cesťák', icon: Truck },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  const isSelected = workType === item.type;
-                  return (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => setWorkType(item.type)}
-                      className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                        isSelected
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md font-bold'
-                          : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                      }`}
-                      style={{ minHeight: '56px' }}
-                    >
-                      <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-400'}`} />
-                      <span className="text-xs leading-snug">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Metoda svařování */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs font-semibold text-slate-400">Metoda sváru:</span>
-              {(['TIG', 'MIG_MAG', 'MMA', 'AUTOGEN', 'COMBINED', 'NONE'] as WeldingMethod[]).map((method) => {
-                const isSelected = weldingMethod === method;
-                return (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => setWeldingMethod(method)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
-                      isSelected
-                        ? 'bg-amber-500 text-slate-950 border-amber-400'
-                        : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    {method === 'MIG_MAG' ? 'MIG/MAG (135)' :
-                     method === 'TIG' ? 'TIG (141)' :
-                     method === 'MMA' ? 'Elektroda (111)' :
-                     method === 'AUTOGEN' ? 'Autogen (311)' :
-                     method === 'COMBINED' ? 'Kombinace' : 'Bez sváru'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Section 2: Časový fond (Od - Do, Pauza, Výpočet čistých hodin) */}
-          <div className={`bg-slate-950/50 border rounded-xl p-3.5 sm:p-4 space-y-4 transition-colors ${timeValidationError ? 'border-rose-500/60' : 'border-slate-800'}`}>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                Časový fond a odpracované hodiny
-              </label>
-              <div className={`text-xs font-extrabold px-2.5 py-1 rounded-lg border ${
-                timeValidationError
-                  ? 'text-rose-400 bg-rose-950/40 border-rose-500/30'
-                  : 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30'
-              }`}>
-                Čistý čas: <span className="text-sm">{totalHours.toFixed(2).replace('.', ',')} h</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Začátek směny (Od)
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                  className={`w-full bg-slate-900 border rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none ${timeValidationError ? 'border-rose-500' : 'border-slate-700'}`}
-                  style={{ minHeight: '44px' }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Konec směny (Do)
-                  {totalHours > 0 && <span className="ml-1 text-slate-500">(noční = +1 den, OK)</span>}
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  required
-                  className={`w-full bg-slate-900 border rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none ${timeValidationError ? 'border-rose-500' : 'border-slate-700'}`}
-                  style={{ minHeight: '44px' }}
-                />
-              </div>
-            </div>
-
-            {/* Time validation error banner */}
-            {timeValidationError && (
-              <div className="flex items-center gap-2 bg-rose-950/40 border border-rose-500/40 rounded-lg px-3 py-2 text-xs text-rose-300 font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
-                {timeValidationError}
-              </div>
-            )}
-
-            {/* Quick Break Buttons */}
-            <QuickBreakButtons value={breakMinutes} onChange={setBreakMinutes} />
-          </div>
-
-
-          {/* Section 3: Flexibilní kalkulátor sazeb & Příplatky */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-                Sazby, náročnost a příplatky
-              </label>
-              <div className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30">
-                Účtováno: <span className="text-sm">{calculatedHourlyRate} Kč/h</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Základní hodinová sazba */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Základní sazba (Kč/h)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={baseHourlyRate}
-                    onChange={(e) => setBaseHourlyRate(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_HOURLY_RATE))}
-                    min={0}
-                    max={INPUT_LIMITS.MAX_HOURLY_RATE}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Kč/h</span>
-                </div>
-              </div>
-
-              {/* Násobič náročnosti */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Násobič náročnosti (koeficient)
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    { val: 1.0, label: '1.0x std' },
-                    { val: 1.15, label: '1.15x' },
-                    { val: 1.25, label: '1.25x výšky' },
-                    { val: 1.5, label: '1.5x těžká' },
-                  ].map((item) => {
-                    const isSelected = complexityMultiplier === item.val;
-                    return (
-                      <button
-                        key={item.val}
-                        type="button"
-                        onClick={() => setComplexityMultiplier(item.val)}
-                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all text-center ${
-                          isSelected
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 shadow font-black'
-                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                        }`}
-                        style={{ minHeight: '44px' }}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Příplatky směny (Víkend, Noční, Svátek) */}
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Příplatky za směnu:
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { type: 'weekend' as ShiftSurchargeType, label: `Víkend (+${settings.rates.surcharges.weekendPercent}%)` },
-                  { type: 'night' as ShiftSurchargeType, label: `Noční (+${settings.rates.surcharges.nightPercent}%)` },
-                  { type: 'holiday' as ShiftSurchargeType, label: `Svátek (+${settings.rates.surcharges.holidayPercent}%)` }
-                ].map((item) => {
-                  const isChecked = shiftSurcharges.includes(item.type);
-                  return (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => toggleSurcharge(item.type)}
-                      className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        isChecked
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-sm'
-                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
-                      }`}
-                      style={{ minHeight: '44px' }}
-                    >
-                      <CheckCircle2 className={`w-4 h-4 ${isChecked ? 'text-amber-400' : 'text-slate-600'}`} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Manual Override (Úkolová mzda / Paušál) */}
-            <div className="pt-2 border-t border-slate-800/80">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={isManualOverride}
-                  onChange={(e) => setIsManualOverride(e.target.checked)}
-                  className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700"
-                />
-                <span>Přepsat na pevnou částku (Úkolová mzda / Domluvený paušál za akci)</span>
-              </label>
-
-              {isManualOverride && (
-                <div className="mt-2.5 max-w-xs animate-in fade-in">
-                  <div className="relative">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={manualTotalOverride}
-                      onChange={(e) => setManualTotalOverride(Number(e.target.value))}
-                      placeholder="např. 6500"
-                      className="w-full bg-slate-900 border border-amber-500 rounded-xl px-3 py-2 text-amber-400 font-mono text-base font-bold focus:outline-none"
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs text-amber-400 font-bold">Kč fixně</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Section 4: Cestovné a Diety (Kilometry, Cesťák, Stravné) */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-3.5">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5 text-amber-400" />
-                Cestovné, doprava a stravné (diety)
-              </label>
-              <div className="text-xs font-bold text-sky-400">
-                Cesta celkem: {formatCurrency(travelTotal)}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {/* Ujeto km */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Ujeto km
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={distanceKm}
-                    onChange={(e) => setDistanceKm(Math.min(Math.max(0, Number(e.target.value)), INPUT_LIMITS.MAX_DISTANCE_KM))}
-                    min={0}
-                    max={INPUT_LIMITS.MAX_DISTANCE_KM}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
-                  />
-                  <span className="absolute right-2.5 top-2.5 text-xs text-slate-400">km</span>
-                </div>
-              </div>
-
-              {/* Sazba za km */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Sazba za km
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={ratePerKm}
-                    onChange={(e) => setRatePerKm(Number(e.target.value))}
-                    min={0}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
-                  />
-                  <span className="absolute right-2.5 top-2.5 text-xs text-slate-400">Kč/km</span>
-                </div>
-              </div>
-
-              {/* Čas za volantem */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Čas řízení (h)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.5"
-                    inputMode="decimal"
-                    value={travelTimeHours}
-                    onChange={(e) => setTravelTimeHours(Math.min(Number(e.target.value), INPUT_LIMITS.MAX_TRAVEL_HOURS))}
-                    min={0}
-                    max={INPUT_LIMITS.MAX_TRAVEL_HOURS}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
-                  />
-                  <span className="absolute right-2.5 top-2.5 text-xs text-slate-400">h</span>
-                </div>
-              </div>
-
-              {/* Sazba za řízení */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Sazba řízení
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={travelHourlyRate}
-                    onChange={(e) => setTravelHourlyRate(Number(e.target.value))}
-                    min={0}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
-                  />
-                  <span className="absolute right-2.5 top-2.5 text-xs text-slate-400">Kč/h</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Stravné (Diety) */}
-            <div className="pt-2 border-t border-slate-800">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Utensils className="w-3.5 h-3.5 text-amber-400" />
-                  Stravné (Diety dle délky výkonu):
-                </span>
-                <button
-                  type="button"
-                  onClick={handleAutoDiet}
-                  className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <Sparkles className="w-3 h-3" /> Auto-doporučit
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleDietClick('none')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all ${
-                    dietAllowance === 0
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-400 font-black'
-                      : 'bg-slate-900 text-slate-400 border-slate-700'
-                  }`}
-                  style={{ minHeight: '44px' }}
-                >
-                  Bez diet (0 Kč)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDietClick('half_day')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all ${
-                    dietAllowance === settings.rates.dietHalfDayRate
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-400 font-black'
-                      : 'bg-slate-900 text-slate-400 border-slate-700'
-                  }`}
-                  style={{ minHeight: '44px' }}
-                >
-                  Půldenní ({settings.rates.dietHalfDayRate} Kč)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDietClick('full_day')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all ${
-                    dietAllowance === settings.rates.dietFullDayRate
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-400 font-black'
-                      : 'bg-slate-900 text-slate-400 border-slate-700'
-                  }`}
-                  style={{ minHeight: '44px' }}
-                >
-                  Celodenní ({settings.rates.dietFullDayRate} Kč)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 5: Vícepráce a materiál (Plyny, dráty, spojovák) */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-amber-400" />
-                Materiál, ochranné plyny a vícepráce
-              </label>
-              <div className="text-xs font-bold text-amber-400">
-                Materiál celkem: {formatCurrency(extrasTotal)}
-              </div>
-            </div>
-
-            {/* Quick Common Items */}
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_EXTRAS.map((c, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleAddExtra(c.description, c.amount)}
-                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium flex items-center gap-1 active:scale-95"
-                >
-                  <Plus className="w-3 h-3 text-amber-400" />
-                  {c.description.split('(')[0]} ({c.amount} Kč)
-                </button>
-              ))}
-            </div>
-
-            {/* Added Items List */}
-            {extraCosts.length > 0 && (
-              <div className="space-y-2 pt-1">
-                {extraCosts.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="flex items-center justify-between gap-2 p-2 bg-slate-900 border border-slate-800 rounded-xl text-xs"
-                  >
-                    <span className="font-medium text-slate-200 flex-1">{item.description}</span>
-                    <span className="font-mono font-bold text-amber-400">{formatCurrency(item.amount)}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveExtra(item.id)}
-                      className="p-1 text-slate-500 hover:text-rose-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Section 6: Stav a Poznámky ke svárům */}
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-3.5">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <FileCheck2 className="w-3.5 h-3.5 text-amber-400" />
-                Stav položky
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { key: 'draft' as WorkEntryStatus, label: 'Koncept / Rozpracováno', color: 'border-amber-500/50 text-amber-400 bg-amber-500/10' },
-                  { key: 'submitted' as WorkEntryStatus, label: 'Odevzdáno firmě', color: 'border-sky-500/50 text-sky-400 bg-sky-500/10' },
-                  { key: 'invoiced' as WorkEntryStatus, label: 'Vyfakturováno', color: 'border-purple-500/50 text-purple-400 bg-purple-500/10' },
-                  { key: 'paid' as WorkEntryStatus, label: 'Zaplaceno', color: 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' },
-                ].map((st) => {
-                  const isSelected = status === st.key;
-                  return (
-                    <button
-                      key={st.key}
-                      type="button"
-                      onClick={() => setStatus(st.key)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
-                        isSelected
-                          ? `${st.color} shadow-md`
-                          : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200'
-                      }`}
-                      style={{ minHeight: '48px' }}
-                    >
-                      {st.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Fakturační číslo pokud je vyfakturováno */}
-            {status === 'invoiced' && (
-              <div className="animate-in fade-in">
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Číslo faktury (např. VF-2026/028)
-                </label>
-                <input
-                  type="text"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="VF-2026/028"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none"
-                  style={{ minHeight: '44px' }}
-                />
-              </div>
-            )}
-
-            {/* Poznámka ke svárům & rychlé tagy */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">
-                  Technická poznámka (kontrola svárů, pozice, vady stavby):
-                </label>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {COMMON_TAGS.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => appendNoteTag(tag)}
-                    className="px-2 py-0.5 bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-300 hover:border-amber-500/40 rounded text-[11px] font-medium flex items-center gap-1"
-                  >
-                    <Tag className="w-2.5 h-2.5" />
-                    {tag}
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                placeholder="např. Svařování potrubní trasy metodou 141 (TIG). Formováno argonem 4.6. Vizuální zkouška VT2 bez vad..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-xs font-mono leading-relaxed focus:border-amber-500 focus:outline-none"
-              />
-            </div>
-          </div>
         </form>
 
         {/* Persistent Bottom Sticky Action Bar with LIVE GRAND TOTAL */}
@@ -1045,6 +374,9 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
               <div className="hidden xs:flex flex-col text-[11px] text-slate-400 border-l border-slate-800 pl-3">
                 <span>Práce: <strong className="text-slate-200">{formatCurrency(totalHours * calculatedHourlyRate)}</strong></span>
                 <span>Cesta & diety: <strong className="text-slate-200">{formatCurrency(travelTotal)}</strong></span>
+                {materialsTotal > 0 && (
+                  <span>Materiál: <strong className="text-slate-200">{formatCurrency(materialsTotal)}</strong></span>
+                )}
               </div>
             </div>
 
@@ -1053,8 +385,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 sm:flex-none px-4 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs active:scale-95 transition-all"
-                style={{ minHeight: '48px' }}
+                className="min-h-touch-lg flex-1 sm:flex-none px-4 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs active:scale-95 transition-all"
               >
                 Zrušit
               </button>
@@ -1062,8 +393,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                style={{ minHeight: '48px' }}
+                className="min-h-touch-lg flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4 stroke-[3]" />
                 <span>{editingEntry ? 'ULOŽIT ZMĚNY' : 'ULOŽIT SMĚNU'}</span>
@@ -1072,6 +402,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
           </div>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { InvoiceReportView } from './components/report/InvoiceReportView';
 import { StatsDashboard } from './components/dashboard/StatsDashboard';
 import { RatesSettingsModal } from './components/settings/RatesSettingsModal';
 import { SmartCheckoutModal } from './components/tracker/SmartCheckoutModal';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useShiftTimer } from './hooks/useShiftTimer';
 import { triggerHaptic } from './utils/haptics';
 import { useToast } from './utils/toast';
@@ -31,6 +32,16 @@ export function App() {
   useEffect(() => {
     initializeDatabase();
   }, []);
+
+  // Listen for DB quota error events (replaces native alert)
+  useEffect(() => {
+    const handleQuotaError = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      showToast(detail?.message || 'Paměť zařízení je plná. Nelze uložit data.', 'error');
+    };
+    window.addEventListener('db-quota-error', handleQuotaError);
+    return () => window.removeEventListener('db-quota-error', handleQuotaError);
+  }, [showToast]);
 
   // Called when Live Tracker finishes shift (direct or via SmartCheckout)
   const handleFinishLiveShift = useCallback((checkoutData: ShiftCheckoutData) => {
@@ -91,7 +102,7 @@ export function App() {
         if (shiftTimer.status !== 'idle') {
           const data = shiftTimer.getShiftCheckoutData();
           if (data) {
-            if (shiftTimer.isSmartCheckoutRequired || data.elapsedHours >= 16 || data.isAnomaly) {
+            if (data.isSmartCheckoutRequired || data.elapsedHours >= 16 || data.isAnomaly) {
               setAppSmartCheckoutData(data);
             } else {
               handleFinishLiveShift(data);
@@ -143,6 +154,17 @@ export function App() {
   const handleSaveEntry = useCallback(async (entry: WorkEntry) => {
     try {
       await db.entries.put(entry);
+
+      // Synchronize dedicated photos table for dual-tier IndexedDB store
+      await db.photos.where('entryId').equals(entry.id).delete();
+      if (entry.photos && entry.photos.length > 0) {
+        const photosWithEntryId = entry.photos.map(p => ({
+          ...p,
+          entryId: entry.id
+        }));
+        await db.photos.bulkPut(photosWithEntryId);
+      }
+
       triggerHaptic('success');
       showToast('Směna byla uložena ✓', 'success');
 
@@ -157,25 +179,51 @@ export function App() {
     }
   }, [shiftTimer, showToast]);
 
-  const handleDeleteEntry = useCallback(async (id: string) => {
-    if (window.confirm('Opravdu chcete smazat tento záznam směny?')) {
-      try {
-        await db.entries.delete(id);
-        triggerHaptic('medium');
-        showToast('Záznam byl smazán', 'warning');
-      } catch (err) {
-        console.error('Failed to delete entry:', err);
-        showToast('Chyba při mazání záznamu', 'error');
-      }
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null);
+
+  const handleDeleteEntry = useCallback((id: string) => {
+    setConfirmDelete({ id });
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!confirmDelete) return;
+    try {
+      await db.entries.delete(confirmDelete.id);
+      await db.photos.where('entryId').equals(confirmDelete.id).delete();
+      triggerHaptic('medium');
+      showToast('Záznam byl smazán', 'warning');
+    } catch (err) {
+      console.error('Failed to delete entry:', err);
+      showToast('Chyba při mazání záznamu', 'error');
     }
-  }, [showToast]);
+    setConfirmDelete(null);
+  }, [confirmDelete, showToast]);
 
   const handleUpdateStatus = useCallback(async (id: string, newStatus: WorkEntryStatus) => {
     try {
-      await db.entries.update(id, {
+      const entry = await db.entries.get(id);
+      if (!entry) return;
+
+      const updates: Partial<WorkEntry> = {
         status: newStatus,
         updatedAt: new Date().toISOString()
-      });
+      };
+
+      // Set due date automatically if moved to invoiced and it doesn't have one
+      if (newStatus === 'invoiced' && !entry.paymentDueDate) {
+        updates.paymentDueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        if (!entry.invoiceNumber) {
+          const year = new Date().getFullYear();
+          const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+          updates.invoiceNumber = `FA-${year}/${month}-...`;
+        }
+      }
+
+      if (newStatus === 'paid' && !entry.paidDate) {
+        updates.paidDate = new Date().toISOString();
+      }
+
+      await db.entries.update(id, updates);
       triggerHaptic('light');
       const statusLabels: Record<WorkEntryStatus, string> = {
         draft: 'Vráceno do konceptu',
@@ -215,6 +263,13 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+      {/* Skip to content – accessibility for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-amber-500 focus:text-slate-950 focus:font-bold focus:text-sm focus:rounded-xl focus:shadow-lg"
+      >
+        Přeskočit na obsah
+      </a>
       {/* Top Header */}
       <Header
         onNewShift={handleOpenNewShift}
@@ -230,7 +285,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
         {activeTab === 'entries' && (
           <EntriesList
             entries={entries}
@@ -301,6 +356,18 @@ export function App() {
           }}
         />
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(confirmDelete)}
+        title="Smazat záznam směny?"
+        message="Opravdu si přejete smazat tento záznam směny včetně připojené fotodokumentace? Tato akce je nevratná."
+        confirmLabel="Smazat záznam"
+        cancelLabel="Zrušit"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

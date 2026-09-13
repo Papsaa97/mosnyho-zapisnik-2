@@ -165,8 +165,7 @@ export const EntriesList: React.FC<EntriesListProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Hledat v zakázkách, poznámkách, metodách sváru..."
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
-              style={{ minHeight: '44px' }}
+              className="min-h-touch w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
             />
           </div>
 
@@ -176,8 +175,7 @@ export const EntriesList: React.FC<EntriesListProps> = ({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'date_desc' | 'date_asc' | 'price_desc')}
-                className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 focus:outline-none focus:border-amber-500"
-                style={{ minHeight: '44px' }}
+                className="min-h-touch bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 focus:outline-none focus:border-amber-500"
               >
                 <option value="date_desc">Nejnovější směny</option>
                 <option value="date_asc">Nejstarší směny</option>
@@ -187,9 +185,8 @@ export const EntriesList: React.FC<EntriesListProps> = ({
 
             <button
               onClick={handleExportFilteredCSV}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 rounded-xl transition-colors"
+              className="min-h-touch flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 rounded-xl transition-colors"
               title="Exportovat aktuální výběr do CSV pro Excel"
-              style={{ minHeight: '44px' }}
             >
               <Download className="w-4 h-4 text-amber-400" />
               <span className="hidden xs:inline">CSV Export</span>
@@ -359,8 +356,7 @@ export const EntriesList: React.FC<EntriesListProps> = ({
             </div>
             <button
               onClick={onNewShift}
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
-              style={{ minHeight: '44px' }}
+              className="min-h-touch px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               Zapsat novou směnu

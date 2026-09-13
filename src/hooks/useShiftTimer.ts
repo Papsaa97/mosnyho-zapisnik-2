@@ -8,7 +8,8 @@ import {
 } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 
-const STORAGE_KEY = 'mosny_active_shift_v2';
+const STORAGE_KEY = 'craftsman_active_shift_v2';
+const LEGACY_STORAGE_KEY = 'mosny_active_shift_v2';
 
 const DEFAULT_STATE: ActiveShiftState = {
   status: 'idle',
@@ -64,7 +65,7 @@ export function formatTimestampToDate(timestamp: number): string {
 export function useShiftTimer() {
   const [shiftState, setShiftState] = useState<ActiveShiftState>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) {
         return JSON.parse(saved);
       }
@@ -74,9 +75,6 @@ export function useShiftTimer() {
     return DEFAULT_STATE;
   });
 
-  const [currentTime, setCurrentTime] = useState<number>(Date.now());
-  const timerRef = useRef<number | null>(null);
-
   // Sync with localStorage on every change
   useEffect(() => {
     try {
@@ -84,7 +82,6 @@ export function useShiftTimer() {
     } catch (e) {
       if (e instanceof Error && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
         console.error('[ShiftTimer] localStorage quota exceeded – active shift state NOT saved!', e);
-        // Try to clear any stale data and retry once
         try {
           localStorage.removeItem(STORAGE_KEY);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(shiftState));
@@ -96,148 +93,6 @@ export function useShiftTimer() {
       }
     }
   }, [shiftState]);
-
-  // Interval ticker to update clock every 1 second when shift is not idle
-  useEffect(() => {
-    if (shiftState.status !== 'idle') {
-      timerRef.current = window.setInterval(() => {
-        setCurrentTime(Date.now());
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [shiftState.status]);
-
-  // iOS Safari Background Sync: when app wakes up or tab becomes visible again,
-  // JS timers may have been frozen. Immediately sync clock with Date.now()
-  useEffect(() => {
-    const handleSync = () => {
-      setCurrentTime(Date.now());
-    };
-
-    document.addEventListener('visibilitychange', handleSync);
-    window.addEventListener('pageshow', handleSync);
-    window.addEventListener('focus', handleSync);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleSync);
-      window.removeEventListener('pageshow', handleSync);
-      window.removeEventListener('focus', handleSync);
-    };
-  }, []);
-
-  // Compute live elapsed times: strictly calculated as Date.now() - startTime - pausedTime
-  const {
-    totalElapsedMs,
-    pausedMs,
-    netWorkedMs,
-    currentPauseDurationMs,
-    isWarningLongShift,
-    isSmartCheckoutRequired,
-    isAnomaly,
-    anomalyReason,
-    elapsedHours
-  } = (() => {
-    if (shiftState.status === 'idle' || !shiftState.startTimestamp) {
-      return {
-        totalElapsedMs: 0,
-        pausedMs: 0,
-        netWorkedMs: 0,
-        currentPauseDurationMs: 0,
-        isWarningLongShift: false,
-        isSmartCheckoutRequired: false,
-        isAnomaly: false,
-        anomalyReason: '',
-        elapsedHours: 0
-      };
-    }
-
-    const elapsed = Math.max(0, currentTime - shiftState.startTimestamp);
-    const activePause = shiftState.status === 'paused' && shiftState.currentPauseStart
-      ? Math.max(0, currentTime - shiftState.currentPauseStart)
-      : 0;
-
-    const totalPause = shiftState.totalPausedMs + activePause;
-    const netWork = Math.max(0, elapsed - totalPause);
-    const hours = elapsed / (1000 * 60 * 60);
-
-    // Anomaly checks
-    const isOver14Hours = hours >= 14;
-    const isOver16Hours = hours >= 16;
-    const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
-    const anomaly = isOver14Hours || isOvernight;
-
-    let reason = '';
-    if (isOver16Hours && isOvernight) {
-      reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
-    } else if (isOver16Hours) {
-      reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
-    } else if (isOver14Hours) {
-      reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
-    } else if (isOvernight) {
-      reason = 'Směna začala včera a stále běží!';
-    }
-
-    return {
-      totalElapsedMs: elapsed,
-      pausedMs: totalPause,
-      netWorkedMs: netWork,
-      currentPauseDurationMs: activePause,
-      isWarningLongShift: isOver14Hours,
-      isSmartCheckoutRequired: isOver16Hours || isOvernight,
-      isAnomaly: anomaly,
-      anomalyReason: reason,
-      elapsedHours: hours
-    };
-  })();
-
-  // 10-hour Local Notification reminder check
-  useEffect(() => {
-    if (
-      (shiftState.status === 'running' || shiftState.status === 'paused') &&
-      elapsedHours >= 10 &&
-      !shiftState.notifiedTenHours
-    ) {
-      // Mark as notified so we don't repeat endlessly
-      setShiftState(prev => ({ ...prev, notifiedTenHours: true }));
-
-      // Trigger notification if permitted
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.ready.then(reg => {
-              // Use NotificationOptions cast – 'renotify' is valid but missing in some TS lib typings
-              const opts: NotificationOptions & { renotify?: boolean } = {
-                body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin. Nezapomeň píchnout odchod!`,
-                icon: '/icon-192.svg',
-                badge: '/icon-192.svg',
-                tag: 'shift-10h-reminder',
-                renotify: true
-              };
-              reg.showNotification('⚠️ Nezapomněl sis ukončit směnu?', opts);
-            });
-          } else {
-            new Notification('⚠️ Nezapomněl sis ukončit směnu?', {
-              body: `Mošnýho zápisník: Směna běží už ${Math.floor(elapsedHours)} hodin.`,
-              icon: '/icon-192.svg'
-            });
-          }
-        } catch (e) {
-          console.warn('Could not display 10h reminder notification:', e);
-        }
-      }
-    }
-  }, [shiftState.status, elapsedHours, shiftState.notifiedTenHours]);
 
   // Action: Start Shift
   const startShift = useCallback((options?: {
@@ -274,7 +129,6 @@ export function useShiftTimer() {
       notifiedTenHours: false
     });
 
-    setCurrentTime(now);
     triggerHaptic('success');
   }, []);
 
@@ -300,7 +154,6 @@ export function useShiftTimer() {
       events: [...prev.events, pauseEvent]
     }));
 
-    setCurrentTime(now);
     triggerHaptic('warning');
   }, [shiftState.status]);
 
@@ -329,7 +182,6 @@ export function useShiftTimer() {
       events: [...prev.events, resumeEvent]
     }));
 
-    setCurrentTime(now);
     triggerHaptic('success');
   }, [shiftState.status, shiftState.currentPauseStart]);
 
@@ -385,6 +237,25 @@ export function useShiftTimer() {
     const startTime = formatTimestampToTime(startTs);
     const endTime = formatTimestampToTime(now);
 
+    // Compute elapsed/anomaly values locally
+    const elapsed = Math.max(0, now - startTs);
+    const hours = elapsed / (1000 * 60 * 60);
+    const isOver14Hours = hours >= 14;
+    const isOver16Hours = hours >= 16;
+    const isOvernight = new Date(startTs).toDateString() !== new Date(now).toDateString();
+    const anomaly = isOver14Hours || isOvernight;
+
+    let reason = '';
+    if (isOver16Hours && isOvernight) {
+      reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
+    } else if (isOver16Hours) {
+      reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
+    } else if (isOver14Hours) {
+      reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
+    } else if (isOvernight) {
+      reason = 'Směna začala včera a stále běží!';
+    }
+
     // Build timeline summary text for notes
     const timelineSummary = shiftState.events
       .map(e => `${e.timeStr} - ${e.title}${e.description ? ` (${e.description})` : ''}`)
@@ -400,11 +271,11 @@ export function useShiftTimer() {
       endTime,
       breakMinutes,
       startTimestamp: startTs,
-      isAnomaly,
-      anomalyReason,
-      elapsedHours,
-      isWarningLongShift,
-      isSmartCheckoutRequired,
+      isAnomaly: anomaly,
+      anomalyReason: reason,
+      elapsedHours: hours,
+      isWarningLongShift: isOver14Hours,
+      isSmartCheckoutRequired: isOver16Hours || isOvernight,
       clientName: shiftState.clientName,
       projectName: shiftState.projectName,
       projectCode: shiftState.projectCode,
@@ -413,12 +284,13 @@ export function useShiftTimer() {
       events: shiftState.events,
       notes: combinedNotes
     };
-  }, [shiftState, isAnomaly, anomalyReason, elapsedHours, isWarningLongShift, isSmartCheckoutRequired]);
+  }, [shiftState]);
 
   // Reset shift to idle (after saving or explicit discard)
   const resetShift = useCallback(() => {
     setShiftState(DEFAULT_STATE);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     triggerHaptic('medium');
   }, []);
 
@@ -435,15 +307,6 @@ export function useShiftTimer() {
   return {
     shiftState,
     status: shiftState.status,
-    totalElapsedMs,
-    pausedMs,
-    netWorkedMs,
-    currentPauseDurationMs,
-    isWarningLongShift,
-    isSmartCheckoutRequired,
-    isAnomaly,
-    anomalyReason,
-    elapsedHours,
     startShift,
     pauseShift,
     resumeShift,
@@ -452,5 +315,118 @@ export function useShiftTimer() {
     getShiftCheckoutData,
     resetShift,
     requestNotificationPermission
+  };
+}
+
+/**
+ * Isolated hook that ticks every second and computes live elapsed values.
+ * Use ONLY in components that display the live timer to avoid re-rendering the entire app.
+ */
+export function useShiftElapsed(shiftState: ActiveShiftState) {
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (shiftState.status !== 'idle') {
+      timerRef.current = window.setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [shiftState.status]);
+
+  // iOS Safari Background Sync
+  useEffect(() => {
+    const handleSync = () => setCurrentTime(Date.now());
+    document.addEventListener('visibilitychange', handleSync);
+    window.addEventListener('pageshow', handleSync);
+    window.addEventListener('focus', handleSync);
+    return () => {
+      document.removeEventListener('visibilitychange', handleSync);
+      window.removeEventListener('pageshow', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, []);
+
+  // 10-hour shift notification via Service Worker
+  useEffect(() => {
+    if (shiftState.status === 'idle' || !shiftState.startTimestamp) return;
+    if (shiftState.notifiedTenHours) return;
+
+    const elapsed = currentTime - shiftState.startTimestamp;
+    const hours = elapsed / (1000 * 60 * 60);
+
+    if (hours >= 10 && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.active?.postMessage({
+          type: 'SHOW_SHIFT_REMINDER',
+          title: '⚠️ Směna běží přes 10 hodin!',
+          body: `Montážní zápisník: Pracuješ už ${hours.toFixed(1)} hodin. Nezapomeň si odpíchnout konec!`
+        });
+      });
+    }
+  }, [currentTime, shiftState.status, shiftState.startTimestamp, shiftState.notifiedTenHours]);
+
+  // Compute live elapsed values
+  if (shiftState.status === 'idle' || !shiftState.startTimestamp) {
+    return {
+      currentTime,
+      totalElapsedMs: 0,
+      pausedMs: 0,
+      netWorkedMs: 0,
+      currentPauseDurationMs: 0,
+      isWarningLongShift: false,
+      isSmartCheckoutRequired: false,
+      isAnomaly: false,
+      anomalyReason: '',
+      elapsedHours: 0
+    };
+  }
+
+  const elapsed = Math.max(0, currentTime - shiftState.startTimestamp);
+  const activePause = shiftState.status === 'paused' && shiftState.currentPauseStart
+    ? Math.max(0, currentTime - shiftState.currentPauseStart)
+    : 0;
+  const totalPause = shiftState.totalPausedMs + activePause;
+  const netWork = Math.max(0, elapsed - totalPause);
+  const hours = elapsed / (1000 * 60 * 60);
+
+  const isOver14Hours = hours >= 14;
+  const isOver16Hours = hours >= 16;
+  const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
+  const anomaly = isOver14Hours || isOvernight;
+
+  let reason = '';
+  if (isOver16Hours && isOvernight) {
+    reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
+  } else if (isOver16Hours) {
+    reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
+  } else if (isOver14Hours) {
+    reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
+  } else if (isOvernight) {
+    reason = 'Směna začala včera a stále běží!';
+  }
+
+  return {
+    currentTime,
+    totalElapsedMs: elapsed,
+    pausedMs: totalPause,
+    netWorkedMs: netWork,
+    currentPauseDurationMs: activePause,
+    isWarningLongShift: isOver14Hours,
+    isSmartCheckoutRequired: isOver16Hours || isOvernight,
+    isAnomaly: anomaly,
+    anomalyReason: reason,
+    elapsedHours: hours
   };
 }

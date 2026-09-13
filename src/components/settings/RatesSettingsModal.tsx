@@ -9,9 +9,13 @@ import {
   Save, 
   Check, 
   Sparkles,
-  Building2
+  Building2,
+  Search,
+  Loader2
 } from 'lucide-react';
 import { AppSettings, ShiftPreset, ClientProfile } from '../../types';
+import { fetchAresData } from '../../services/aresService';
+import { useToast } from '../../utils/toast';
 
 
 interface RatesSettingsModalProps {
@@ -31,6 +35,51 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [localPresets, setLocalPresets] = useState<ShiftPreset[]>(presets);
   const [savedAlert, setSavedAlert] = useState<boolean>(false);
+  const [aresLoading, setAresLoading] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  const handleLoadAresContractor = async () => {
+    if (!formData.contractor.ico) return;
+    setAresLoading('contractor');
+    try {
+      const data = await fetchAresData(formData.contractor.ico);
+      setFormData(prev => ({
+        ...prev,
+        contractor: {
+          ...prev.contractor,
+          name: data.obchodniJmeno,
+          address: data.sidlo.textovaAdresa.split(',')[0] || '', // simple split
+          dic: data.dic || prev.contractor.dic,
+        }
+      }));
+      showToast('Údaje úspěšně načteny z ARES', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Chyba ARES', 'error');
+    } finally {
+      setAresLoading(null);
+    }
+  };
+
+  const handleLoadAresClient = async (clientId: string, ico: string | undefined) => {
+    if (!ico) return;
+    setAresLoading(clientId);
+    try {
+      const data = await fetchAresData(ico);
+      setFormData(prev => ({
+        ...prev,
+        clients: prev.clients.map(c => 
+          c.id === clientId 
+            ? { ...c, name: data.obchodniJmeno, address: data.sidlo.textovaAdresa, dic: data.dic } 
+            : c
+        )
+      }));
+      showToast('Odběratel úspěšně načten z ARES', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Chyba ARES', 'error');
+    } finally {
+      setAresLoading(null);
+    }
+  };
 
   const handleRateChange = (field: keyof AppSettings['rates'], value: number) => {
     setFormData(prev => ({
@@ -80,7 +129,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
     }));
   };
 
-  const handleUpdateClient = (id: string, field: keyof ClientProfile, value: string | number) => {
+  const handleUpdateClient = (id: string, field: keyof ClientProfile, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       clients: prev.clients.map(c => c.id === id ? { ...c, [field]: value } : c)
@@ -143,7 +192,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
         <button
           onClick={handleSaveAll}
           className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all self-start sm:self-auto"
-          style={{ minHeight: '44px' }}
+          
         >
           <Save className="w-4 h-4 stroke-[2.5]" />
           <span>ULOŽIT VŠECHNA NASTAVENÍ</span>
@@ -206,7 +255,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.defaultWorkshopRate}
                     onChange={(e) => handleRateChange('defaultWorkshopRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/h</span>
                 </div>
@@ -222,7 +271,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.defaultSiteAssemblyRate}
                     onChange={(e) => handleRateChange('defaultSiteAssemblyRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/h</span>
                 </div>
@@ -238,7 +287,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.defaultEmergencyRate}
                     onChange={(e) => handleRateChange('defaultEmergencyRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/h</span>
                 </div>
@@ -254,7 +303,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.defaultTravelHourlyRate}
                     onChange={(e) => handleRateChange('defaultTravelHourlyRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/h</span>
                 </div>
@@ -294,7 +343,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                       Number(e.target.value)
                     )}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">
                     {formData.rates.surcharges.useFixedBonus ? 'Kč/h' : '%'}
@@ -315,7 +364,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                       Number(e.target.value)
                     )}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">
                     {formData.rates.surcharges.useFixedBonus ? 'Kč/h' : '%'}
@@ -336,7 +385,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                       Number(e.target.value)
                     )}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                    
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">
                     {formData.rates.surcharges.useFixedBonus ? 'Kč/h' : '%'}
@@ -353,7 +402,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
               Náhrady za dopravu & Stravné (Diety)
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Sazba za 1 km jízdy dodávkou
@@ -364,7 +413,6 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.defaultRatePerKm}
                     onChange={(e) => handleRateChange('defaultRatePerKm', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč/km</span>
                 </div>
@@ -372,7 +420,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Půldenní stravné (5–12 hodin)
+                  Pásmo 1 (5–12 hodin)
                 </label>
                 <div className="relative">
                   <input
@@ -380,7 +428,6 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.dietHalfDayRate}
                     onChange={(e) => handleRateChange('dietHalfDayRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč</span>
                 </div>
@@ -388,7 +435,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Celodenní stravné (nad 12 hodin)
+                  Pásmo 2 (12–18 hodin)
                 </label>
                 <div className="relative">
                   <input
@@ -396,7 +443,21 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                     value={formData.rates.dietFullDayRate}
                     onChange={(e) => handleRateChange('dietFullDayRate', Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
-                    style={{ minHeight: '44px' }}
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Pásmo 3 (nad 18 hodin)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={formData.rates.dietOver18Rate ?? 398}
+                    onChange={(e) => handleRateChange('dietOver18Rate', Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">Kč</span>
                 </div>
@@ -520,12 +581,23 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
 
             <div>
               <label className="block text-slate-300 font-bold mb-1">IČO</label>
-              <input
-                type="text"
-                value={formData.contractor.ico}
-                onChange={(e) => handleContractorChange('ico', e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.contractor.ico}
+                  onChange={(e) => handleContractorChange('ico', e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={handleLoadAresContractor}
+                  disabled={aresLoading === 'contractor' || !formData.contractor.ico}
+                  className="px-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/30 disabled:opacity-50 flex items-center justify-center transition-all"
+                  title="Načíst údaje z ARES"
+                >
+                  {aresLoading === 'contractor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
@@ -645,12 +717,23 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] text-slate-400 block">IČO</label>
-                    <input
-                      type="text"
-                      value={client.ico || ''}
-                      onChange={(e) => handleUpdateClient(client.id, 'ico', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white font-mono"
-                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={client.ico || ''}
+                        onChange={(e) => handleUpdateClient(client.id, 'ico', e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleLoadAresClient(client.id, client.ico)}
+                        disabled={aresLoading === client.id || !client.ico}
+                        className="px-2 bg-slate-800 text-amber-400 border border-slate-700 rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center justify-center transition-all"
+                        title="Načíst z ARES"
+                      >
+                        {aresLoading === client.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-[10px] text-slate-400 block">Sídlo / Adresa</label>
@@ -682,6 +765,23 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white font-mono"
                     />
                   </div>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block">
+                      Výchozí režim § 92e PDP
+                    </label>
+                    <span className="text-[10px] text-slate-500 block">
+                      Přenesená daňová povinnost dle § 92e ZDPH (CZ-CPA 41–43)
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!client.isPdpDefault}
+                    onChange={(e) => handleUpdateClient(client.id, 'isPdpDefault', e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 accent-amber-500 cursor-pointer"
+                  />
                 </div>
               </div>
             ))}

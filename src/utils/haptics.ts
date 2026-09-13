@@ -2,7 +2,7 @@
  * Haptic feedback utility for mobile touch devices (iPhone / Android).
  * Uses navigator.vibrate where supported, with safe error handling and standard vibration patterns.
  */
-export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
 export function triggerHaptic(type: HapticType = 'light'): void {
   if (typeof window === 'undefined' || !('navigator' in window)) return;
@@ -11,6 +11,7 @@ export function triggerHaptic(type: HapticType = 'light'): void {
     if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
       switch (type) {
         case 'light':
+        case 'selection':
           navigator.vibrate(12);
           break;
         case 'medium':

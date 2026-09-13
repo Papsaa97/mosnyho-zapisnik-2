@@ -29,12 +29,11 @@ export const QuickBreakButtons: React.FC<QuickBreakButtonsProps> = ({ value, onC
               key={min}
               type="button"
               onClick={() => onChange(min)}
-              className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all text-center ${
+              className={`min-h-touch py-2 px-1 text-xs font-bold rounded-lg border transition-all text-center ${
                 isSelected
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
               }`}
-              style={{ minHeight: '44px' }}
             >
               {min === 0 ? '0 min' : `${min}m`}
             </button>

@@ -9,6 +9,14 @@
   }
 }
 
+@utility min-h-touch {
+  min-height: 44px;
+}
+
+@utility min-h-touch-lg {
+  min-height: 48px;
+}
+
 /* Dedicated Print Styles for clean A4 handover/invoice report */
 @media print {
   @page {
@@ -62,4 +70,29 @@
     background-color: #f1f5f9 !important;
     color: #0f172a !important;
   }
+
+  .print-signature-box {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .signature-img {
+    max-height: 56px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    display: block;
+    margin: 0 auto;
+    filter: contrast(1.15);
+  }
 }
+
+.print-signature-box {
+  break-inside: avoid;
+}
+
+.signature-img {
+  max-height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+

@@ -13,7 +13,7 @@ import { exportDatabaseBackupToJSON, importDatabaseBackupFromJSON } from '../../
 import { resetToDemoData } from '../../db';
 import { useToast } from '../../utils/toast';
 import { triggerHaptic } from '../../utils/haptics';
-
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 interface HeaderProps {
   onNewShift: () => void;
@@ -25,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
   const { showToast } = useToast();
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [showBackupMenu, setShowBackupMenu] = useState<boolean>(false);
+  const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -39,13 +40,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
     };
   }, []);
 
-  const handleResetData = useCallback(async () => {
-    if (window.confirm('Opravdu chcete obnovit výchozí ukázková data svářeče? Všechny úpravy budou přepsány ukázkou.')) {
-      await resetToDemoData();
-      showToast('Ukázková data byla úspěšně obnovena', 'success');
-      setShowBackupMenu(false);
-      triggerHaptic('success');
-    }
+  const handleResetData = useCallback(() => {
+    setConfirmReset(true);
+  }, []);
+
+  const executeResetData = useCallback(async () => {
+    await resetToDemoData();
+    showToast('Ukázková data byla úspěšně obnovena', 'success');
+    setShowBackupMenu(false);
+    triggerHaptic('success');
+    setConfirmReset(false);
   }, [showToast]);
 
   const handleBackupExport = useCallback(async () => {
@@ -91,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
-                MOŠNÝHO ZÁPISNÍK
+                MONTÁŽNÍ ZÁPISNÍK
                 <span className="text-xs bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">
                   2.0 PRO
                 </span>
@@ -133,6 +137,8 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           <div className="relative">
             <button
               onClick={() => setShowBackupMenu(!showBackupMenu)}
+              aria-expanded={showBackupMenu}
+              aria-haspopup="menu"
               className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors"
               title="Správa dat a záloha"
             >
@@ -147,13 +153,13 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
 
                 <button
                   onClick={handleBackupExport}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors"
                 >
                   <Download className="w-4 h-4 text-amber-400" />
                   Stáhnout zálohu (JSON)
                 </button>
 
-                <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors">
+                <label className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors">
                   <Upload className="w-4 h-4 text-sky-400" />
                   Obnovit ze zálohy (JSON)
                   <input
@@ -168,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
 
                 <button
                   onClick={handleResetData}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors"
                 >
                   <RotateCcw className="w-4 h-4 text-rose-400" />
                   Obnovit ukázková data
@@ -180,8 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           {/* New Shift CTA Button (Mobile & Desktop thumb target) */}
           <button
             onClick={() => { onNewShift(); triggerHaptic('success'); }}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm tracking-wide"
-            style={{ minHeight: '44px' }}
+            className="min-h-touch flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm tracking-wide"
           >
             <Plus className="w-5 h-5 stroke-[3]" />
             <span className="hidden xs:inline font-extrabold">ZAPSAT SMĚNU</span>
@@ -189,6 +194,17 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           </button>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={confirmReset}
+        title="Obnovit ukázková data?"
+        message="Opravdu chcete obnovit výchozí ukázková data svářeče? Všechny úpravy budou přepsány ukázkou."
+        confirmLabel="Obnovit"
+        cancelLabel="Zrušit"
+        variant="warning"
+        onConfirm={executeResetData}
+        onCancel={() => setConfirmReset(false)}
+      />
     </header>
   );
 };

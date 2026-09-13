@@ -12,7 +12,7 @@ import {
   BellRing,
   History
 } from 'lucide-react';
-import { useShiftTimer, formatDurationMs, formatTimestampToTime } from '../../hooks/useShiftTimer';
+import { useShiftTimer, useShiftElapsed, formatDurationMs, formatTimestampToTime } from '../../hooks/useShiftTimer';
 import { ShiftPreset, AppSettings, WorkType, WeldingMethod, ShiftCheckoutData } from '../../types';
 import { SmartCheckoutModal } from './SmartCheckoutModal';
 import { triggerHaptic } from '../../utils/haptics';
@@ -45,14 +45,6 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
   const {
     shiftState,
     status,
-    pausedMs,
-    netWorkedMs,
-    currentPauseDurationMs,
-    isWarningLongShift,
-    isSmartCheckoutRequired,
-    isAnomaly,
-    anomalyReason,
-    elapsedHours,
     startShift,
     pauseShift,
     resumeShift,
@@ -62,6 +54,18 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     resetShift,
     requestNotificationPermission
   } = timer;
+
+  // Live elapsed values from isolated ticking hook – only THIS component re-renders every second
+  const {
+    pausedMs,
+    netWorkedMs,
+    currentPauseDurationMs,
+    isWarningLongShift,
+    isSmartCheckoutRequired,
+    isAnomaly,
+    anomalyReason,
+    elapsedHours
+  } = useShiftElapsed(shiftState);
 
   const [noteInput, setNoteInput] = useState<string>('');
   const [showConfig, setShowConfig] = useState<boolean>(false);
