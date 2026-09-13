@@ -2,7 +2,7 @@
   "name": "montazni-zapisnik-pwa",
   "private": true,
   "version": "2.0.0",
-  "description": "Montážní & svářečský zápisník 2.0 – Profesionální výkazník prací",
+  "description": "Mošnyho zápisník 2.0 – Profesionální montážní & svářečský výkazník",
   "type": "module",
   "scripts": {
     "dev": "vite",

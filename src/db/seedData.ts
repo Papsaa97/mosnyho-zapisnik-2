@@ -7,19 +7,19 @@ import {
 export const DEFAULT_SETTINGS: AppSettings = {
   id: 'global_settings',
   contractor: {
-    name: 'Montér / Svářeč',
+    name: 'Kryštof Mošner',
     tradeTitle: 'Svářečské, zámečnické a montážní práce',
-    ico: '12345678',
-    dic: '',
-    address: 'Průmyslová 100',
-    city: 'Praha',
-    zip: '110 00',
-    bankAccount: '123456789/0100',
-    bankCode: '0100',
-    iban: 'CZ6501000000000123456789',
-    swift: 'KOMBCZPPXXX',
-    phone: '+420 777 000 000',
-    email: 'montaz@email.cz',
+    ico: '87452190',
+    dic: 'CZ8905141234',
+    address: 'Průmyslová 1420/8',
+    city: 'Plzeň',
+    zip: '301 00',
+    bankAccount: '2401897654/2010',
+    bankCode: '2010',
+    iban: 'CZ7820100000002401897654',
+    swift: 'FIOBCZPPXXX',
+    phone: '+420 775 892 341',
+    email: 'krystof.mosner@seznam.cz',
     certifications: 'ČSN EN ISO 9606-1 (141 TIG nerez/černý, 135 MAG ocel), Vazačský & Jeřábnický průkaz, Práce ve výškách'
   },
   rates: {
@@ -77,15 +77,22 @@ export const DEFAULT_SETTINGS: AppSettings = {
       defaultKm: 18
     }
   ],
+  materialCatalog: [
+    { id: 'mat_argon', name: 'Argon 4.6 (láhev)', unitPrice: 650, unit: 'ks' },
+    { id: 'mat_tig_wire', name: 'Přídavný drát TIG ER316L', unitPrice: 240, unit: 'kg' },
+    { id: 'mat_sg2_wire', name: 'Svářecí drát SG2 15kg (cívka)', unitPrice: 1100, unit: 'ks' },
+    { id: 'mat_cutting_discs', name: 'Řezné kotouče 125mm (balení 10ks)', unitPrice: 350, unit: 'bal' },
+    { id: 'mat_anchors', name: 'Kotevní materiál / svorníky M16', unitPrice: 800, unit: 'bal' }
+  ],
   darkMode: true,
-  currencySymbol: 'Kč'
+  currencySymbol: 'Kč',
+  shiftAnomalyLimitHours: 16
 };
 
 export const DEFAULT_PRESETS: ShiftPreset[] = [
   {
     id: 'preset_workshop_std',
     name: 'Dílna – Standard svařování (480 Kč/h)',
-    description: 'Příprava, zámečnické sesazení a svařování v dílně s plným vybavením.',
     workType: 'workshop_welding',
     baseHourlyRate: 480,
     complexityMultiplier: 1.0,
@@ -112,7 +119,6 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
   {
     id: 'preset_site_heights',
     name: 'Montáž stavba – Výšky / nerez (620 Kč/h + násobič 1.25)',
-    description: 'Montáž na stavbě v plošině nebo na lešení, potrubní rozvody.',
     workType: 'site_assembly',
     baseHourlyRate: 620,
     complexityMultiplier: 1.25,
@@ -138,7 +144,6 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
   {
     id: 'preset_emergency_weekend',
     name: 'Havárie / Víkendová pohotovost (850 Kč/h)',
-    description: 'Okamžitý výjezd, odstávka výroby, havarijní oprava technologií.',
     workType: 'service_emergency',
     baseHourlyRate: 850,
     complexityMultiplier: 1.5,
@@ -164,7 +169,6 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
   {
     id: 'preset_tig_pipe',
     name: 'TIG Potrubí – Zrcátko / stísněné prostory (700 Kč/h)',
-    description: 'Náročné sváry nerez/tlakových rozvodů pod rentgen/ultrazvuk.',
     workType: 'site_assembly',
     baseHourlyRate: 700,
     complexityMultiplier: 1.3,
@@ -190,7 +194,6 @@ export const DEFAULT_PRESETS: ShiftPreset[] = [
   {
     id: 'preset_travel_delivery',
     name: 'Pouze cesťák a převoz materiálu',
-    description: 'Závoz svařenců na lakovnu, nákup hutního materiálu a technických plynů.',
     workType: 'travel_only',
     baseHourlyRate: 350,
     complexityMultiplier: 1.0,
@@ -218,7 +221,6 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
   {
     id: 'entry-01',
     date: '2026-03-02',
-    projectCode: 'Hala-C/2026',
     projectName: 'Hala C – Nerezová potrubní trasa DN150',
     clientName: 'Metrostav DIZ s.r.o.',
     workType: 'site_assembly',
@@ -299,7 +301,6 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
   {
     id: 'entry-02',
     date: '2026-03-03',
-    projectCode: 'Hala-C/2026',
     projectName: 'Hala C – Nerezová potrubní trasa DN150',
     clientName: 'Metrostav DIZ s.r.o.',
     workType: 'site_assembly',
@@ -369,7 +370,6 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
   {
     id: 'entry-03',
     date: '2026-03-04',
-    projectCode: 'HEB-240-DILNA',
     projectName: 'Dílna – Nosníky a patky HEB 240 pro přístavek',
     clientName: 'TechnoMont Industrial s.r.o.',
     workType: 'workshop_welding',
@@ -422,7 +422,6 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
   {
     id: 'entry-04',
     date: '2026-03-05',
-    projectCode: 'SERVIS-LIS-01',
     projectName: 'Havarijní oprava stolu lisu 400t – Noční směna',
     clientName: 'KovoVýroba & Zámečnictví Novák s.r.o.',
     workType: 'service_emergency',
@@ -471,7 +470,6 @@ export const INITIAL_MOCK_ENTRIES: WorkEntry[] = [
   {
     id: 'entry-05',
     date: '2026-03-06',
-    projectCode: 'LAVKA-14M',
     projectName: 'Technologická lávka a zábradlí – montáž ve výšce 14m',
     clientName: 'Metrostav DIZ s.r.o.',
     workType: 'site_assembly',

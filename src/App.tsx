@@ -14,7 +14,12 @@ import { SmartCheckoutModal } from './components/tracker/SmartCheckoutModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useShiftTimer } from './hooks/useShiftTimer';
 import { triggerHaptic } from './utils/haptics';
-import { useToast } from './utils/toast';
+import { useToast } from './utils/toastContext';
+
+// Stable references so useLiveQuery's "not loaded yet" fallback doesn't
+// produce a brand-new array on every render (which would defeat useMemo).
+const EMPTY_ENTRIES: WorkEntry[] = [];
+const EMPTY_SETTINGS_LIST: AppSettings[] = [];
 
 export function App() {
   const { showToast } = useToast();
@@ -26,7 +31,22 @@ export function App() {
   const [appSmartCheckoutData, setAppSmartCheckoutData] = useState<ShiftCheckoutData | null>(null);
 
   // Live Shift Tracker hook with localStorage persistence & haptics
-  const shiftTimer = useShiftTimer();
+  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || EMPTY_SETTINGS_LIST;
+  const settings: AppSettings = useMemo(() => {
+    const stored = settingsList[0];
+    if (!stored) return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      rates: {
+        ...DEFAULT_SETTINGS.rates,
+        ...stored.rates,
+        surcharges: { ...DEFAULT_SETTINGS.rates.surcharges, ...stored.rates?.surcharges }
+      },
+      contractor: { ...DEFAULT_SETTINGS.contractor, ...stored.contractor }
+    };
+  }, [settingsList]);
+  const shiftTimer = useShiftTimer(settings.shiftAnomalyLimitHours || 16);
 
   // Initialize DB once on start
   useEffect(() => {
@@ -55,7 +75,6 @@ export function App() {
       breakMinutes: checkoutData.breakMinutes,
       clientName: checkoutData.clientName,
       projectName: checkoutData.projectName,
-      projectCode: checkoutData.projectCode,
       workType: checkoutData.workType,
       weldingMethod: checkoutData.weldingMethod,
       notes: checkoutData.notes,
@@ -87,18 +106,23 @@ export function App() {
     handleFinishLiveShift(adjustedData);
   }, [appSmartCheckoutData, handleFinishLiveShift]);
 
-  // Handle PWA shortcuts from URL parameter
+  // Handle actions triggered from iOS Shortcuts / home-screen widgets via a
+  // "?akce=" URL parameter (also used by the PWA manifest shortcuts below).
+  // This synchronizes with an external system (the launch URL) right after
+  // mount – it can't be an event handler since no user action fires it.
+  // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
-    const action = urlParams.get('action');
+    const akce = urlParams.get('akce');
 
-    if (action) {
-      if (action === 'start_shift') {
+    if (akce) {
+      if (akce === 'start') {
         if (shiftTimer.status === 'idle') {
           shiftTimer.startShift();
+          showToast('Směna zahájena', 'success');
         }
-      } else if (action === 'end_shift') {
+      } else if (akce === 'stop') {
         if (shiftTimer.status !== 'idle') {
           const data = shiftTimer.getShiftCheckoutData();
           if (data) {
@@ -109,28 +133,27 @@ export function App() {
             }
           }
         }
-      } else if (action === 'toggle_pause') {
+      } else if (akce === 'pauza') {
         if (shiftTimer.status === 'running') {
           shiftTimer.pauseShift();
         } else if (shiftTimer.status === 'paused') {
           shiftTimer.resumeShift();
         }
-      } else if (action === 'manual_entry') {
+      } else if (akce === 'novy') {
         setEditingEntry(null);
         setInitialFormValues(null);
         setIsShiftModalOpen(true);
       }
 
-      // Clear query params without reloading the page
-      window.history.replaceState({}, '', window.location.pathname);
+      // Clear the query param so a page refresh (F5) doesn't repeat the action
+      window.history.replaceState({}, '', '/');
     }
-  }, [shiftTimer, handleFinishLiveShift]);
+  }, [shiftTimer, handleFinishLiveShift, showToast]);
 
   // Reactive queries from IndexedDB
-  const entries = useLiveQuery(() => db.entries.toArray(), []) || [];
+  const entries = useLiveQuery(() => db.entries.toArray(), []) || EMPTY_ENTRIES;
   const presets = useLiveQuery(() => db.presets.toArray(), []) || DEFAULT_PRESETS;
-  const settingsList = useLiveQuery(() => db.settings.toArray(), []) || [];
-  const settings: AppSettings = settingsList[0] || DEFAULT_SETTINGS;
+
 
   // Count items ready for billing
   const pendingInvoiceCount = useMemo(
@@ -262,7 +285,7 @@ export function App() {
   }, [showToast]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       {/* Skip to content – accessibility for keyboard users */}
       <a
         href="#main-content"
@@ -273,7 +296,6 @@ export function App() {
       {/* Top Header */}
       <Header
         onNewShift={handleOpenNewShift}
-        onOpenSettings={() => setActiveTab('settings')}
         entriesCount={entries.length}
       />
 
@@ -304,6 +326,7 @@ export function App() {
           <InvoiceReportView
             entries={entries}
             settings={settings}
+            onSaveSettings={handleSaveSettings}
           />
         )}
 
@@ -343,7 +366,7 @@ export function App() {
         />
       )}
 
-      {/* Smart Checkout Modal triggered by shortcut or global end_shift */}
+      {/* Smart Checkout Modal triggered by the "?akce=stop" shortcut */}
       {appSmartCheckoutData && (
         <SmartCheckoutModal
           isOpen={Boolean(appSmartCheckoutData)}

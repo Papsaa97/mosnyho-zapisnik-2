@@ -26,6 +26,7 @@ import {
   formatActivityTagsForProtocol
 } from '../../services/pricingEngine';
 import { exportEntriesToCSV } from '../../services/exportService';
+import { getNextDocumentNumber } from '../../services/documentNumbering';
 import { useToast } from '../../utils/toast';
 import { triggerHaptic } from '../../utils/haptics';
 import { TechnicalPassportService } from '../../services/weldingPassportService';
@@ -37,18 +38,28 @@ import { updateEntrySignatures } from '../../db';
 interface InvoiceReportViewProps {
   entries: WorkEntry[];
   settings: AppSettings;
+  onSaveSettings?: (settings: AppSettings) => Promise<void>;
 }
 
 export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
   entries,
-  settings
+  settings,
+  onSaveSettings
 }) => {
   const { showToast } = useToast();
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [showFinancials, setShowFinancials] = useState<boolean>(true); // Hide prices for technical handover if needed
   const [documentType, setDocumentType] = useState<'protocol' | 'invoice'>('protocol');
-  const [protocolNumber, setProtocolNumber] = useState<string>(`PR-${new Date().getFullYear()}/${(new Date().getMonth() + 1).toString().padStart(2, '0')}-01`);
+  const [protocolNumber, setProtocolNumber] = useState<string>(
+    () => getNextDocumentNumber('PR', new Date().getFullYear(), [settings.lastProtocolNumber])
+  );
+
+  const recordIssuedProtocolNumber = useCallback(() => {
+    if (onSaveSettings && protocolNumber.trim() && protocolNumber !== settings.lastProtocolNumber) {
+      onSaveSettings({ ...settings, lastProtocolNumber: protocolNumber.trim() });
+    }
+  }, [protocolNumber, settings, onSaveSettings]);
 
   // Distinct clients
   const availableClients = useMemo(() => {
@@ -222,14 +233,16 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
   const handlePrint = useCallback(() => {
     triggerHaptic('success');
     showToast('Spouštím tisk / PDF export...', 'info');
+    recordIssuedProtocolNumber();
     setTimeout(() => window.print(), 300);
-  }, [showToast]);
+  }, [showToast, recordIssuedProtocolNumber]);
 
   const handleExportCSV = useCallback(() => {
     exportEntriesToCSV(reportEntries, `podklad_${selectedClient}_${activeMonth}`);
     triggerHaptic('success');
     showToast('CSV soubor byl stažen ✓', 'success');
-  }, [reportEntries, selectedClient, activeMonth, showToast]);
+    recordIssuedProtocolNumber();
+  }, [reportEntries, selectedClient, activeMonth, showToast, recordIssuedProtocolNumber]);
 
   const periodLabel = activeMonth === 'all' 
     ? 'Kompletní výkaz' 
@@ -325,7 +338,7 @@ export const InvoiceReportView: React.FC<InvoiceReportViewProps> = ({
       </div>
 
       {/* --- OFFICIAL A4 PRINT CONTAINER --- */}
-      <div className="print-container bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-2xl border border-slate-200">
+      <div id="printable-invoice" className="print-container bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-2xl border border-slate-200">
         
         {/* Document Header */}
         <div className="border-b-2 border-slate-900 pb-5 mb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">

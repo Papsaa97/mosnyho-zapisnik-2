@@ -2,28 +2,11 @@
  * Global Toast Notification System
  * Lightweight, zero-dependency toast implementation using React context.
  */
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Trash2, FileCheck2, X } from 'lucide-react';
+import { ToastContext, Toast, ToastVariant, useToast } from './toastContext';
 
-export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
-
-export interface Toast {
-  id: string;
-  message: string;
-  variant: ToastVariant;
-}
-
-interface ToastContextValue {
-  showToast: (message: string, variant?: ToastVariant) => void;
-}
-
-const ToastContext = createContext<ToastContextValue>({
-  showToast: () => undefined
-});
-
-export function useToast() {
-  return useContext(ToastContext);
-}
+export { useToast, type Toast, type ToastVariant };
 
 const ICON_MAP: Record<ToastVariant, React.ElementType> = {
   success: CheckCircle2,

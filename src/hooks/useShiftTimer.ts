@@ -19,7 +19,6 @@ const DEFAULT_STATE: ActiveShiftState = {
   events: [],
   clientName: '',
   projectName: '',
-  projectCode: '',
   workType: 'site_assembly',
   weldingMethod: 'TIG',
   notes: '',
@@ -62,7 +61,7 @@ export function formatTimestampToDate(timestamp: number): string {
   return `${year}-${month}-${day}`;
 }
 
-export function useShiftTimer() {
+export function useShiftTimer(anomalyLimitHours: number = 16) {
   const [shiftState, setShiftState] = useState<ActiveShiftState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -74,6 +73,7 @@ export function useShiftTimer() {
     }
     return DEFAULT_STATE;
   });
+
 
   // Sync with localStorage on every change
   useEffect(() => {
@@ -98,7 +98,6 @@ export function useShiftTimer() {
   const startShift = useCallback((options?: {
     clientName?: string;
     projectName?: string;
-    projectCode?: string;
     workType?: WorkType;
     weldingMethod?: WeldingMethod;
   }) => {
@@ -122,7 +121,6 @@ export function useShiftTimer() {
       events: [startEvent],
       clientName: options?.clientName || 'Metrostav DIZ s.r.o.',
       projectName: options?.projectName || 'Montáž ocelových konstrukcí',
-      projectCode: options?.projectCode || 'Hala-C',
       workType: options?.workType || 'site_assembly',
       weldingMethod: options?.weldingMethod || 'TIG',
       notes: '',
@@ -240,20 +238,18 @@ export function useShiftTimer() {
     // Compute elapsed/anomaly values locally
     const elapsed = Math.max(0, now - startTs);
     const hours = elapsed / (1000 * 60 * 60);
-    const isOver14Hours = hours >= 14;
-    const isOver16Hours = hours >= 16;
-    const isOvernight = new Date(startTs).toDateString() !== new Date(now).toDateString();
-    const anomaly = isOver14Hours || isOvernight;
+    const isOver14Hours = hours >= anomalyLimitHours - 2;
+    const isOver16Hours = hours >= anomalyLimitHours;
+    const hasCrossedMidnight = new Date(startTs).toDateString() !== new Date(now).toDateString();
+    const anomaly = isOver14Hours;
 
     let reason = '';
-    if (isOver16Hours && isOvernight) {
+    if (isOver16Hours && hasCrossedMidnight) {
       reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
     } else if (isOver16Hours) {
       reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
     } else if (isOver14Hours) {
       reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
-    } else if (isOvernight) {
-      reason = 'Směna začala včera a stále běží!';
     }
 
     // Build timeline summary text for notes
@@ -275,10 +271,9 @@ export function useShiftTimer() {
       anomalyReason: reason,
       elapsedHours: hours,
       isWarningLongShift: isOver14Hours,
-      isSmartCheckoutRequired: isOver16Hours || isOvernight,
+      isSmartCheckoutRequired: isOver16Hours,
       clientName: shiftState.clientName,
       projectName: shiftState.projectName,
-      projectCode: shiftState.projectCode,
       workType: shiftState.workType,
       weldingMethod: shiftState.weldingMethod,
       events: shiftState.events,
@@ -322,7 +317,7 @@ export function useShiftTimer() {
  * Isolated hook that ticks every second and computes live elapsed values.
  * Use ONLY in components that display the live timer to avoid re-rendering the entire app.
  */
-export function useShiftElapsed(shiftState: ActiveShiftState) {
+export function useShiftElapsed(shiftState: ActiveShiftState, anomalyLimitHours: number = 16) {
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const timerRef = useRef<number | null>(null);
 
@@ -401,20 +396,18 @@ export function useShiftElapsed(shiftState: ActiveShiftState) {
   const netWork = Math.max(0, elapsed - totalPause);
   const hours = elapsed / (1000 * 60 * 60);
 
-  const isOver14Hours = hours >= 14;
-  const isOver16Hours = hours >= 16;
-  const isOvernight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
-  const anomaly = isOver14Hours || isOvernight;
+  const isOver14Hours = hours >= anomalyLimitHours - 2;
+  const isOver16Hours = hours >= anomalyLimitHours;
+  const hasCrossedMidnight = new Date(shiftState.startTimestamp).toDateString() !== new Date(currentTime).toDateString();
+  const anomaly = isOver14Hours;
 
   let reason = '';
-  if (isOver16Hours && isOvernight) {
+  if (isOver16Hours && hasCrossedMidnight) {
     reason = `Běží už ${hours.toFixed(1)} h a přetekla přes půlnoc!`;
   } else if (isOver16Hours) {
     reason = `Běží už ${hours.toFixed(1)} hodin bez přerušení!`;
   } else if (isOver14Hours) {
     reason = `Běží podezřele dlouho (${hours.toFixed(1)} h)`;
-  } else if (isOvernight) {
-    reason = 'Směna začala včera a stále běží!';
   }
 
   return {
@@ -424,7 +417,7 @@ export function useShiftElapsed(shiftState: ActiveShiftState) {
     netWorkedMs: netWork,
     currentPauseDurationMs: activePause,
     isWarningLongShift: isOver14Hours,
-    isSmartCheckoutRequired: isOver16Hours || isOvernight,
+    isSmartCheckoutRequired: isOver16Hours,
     isAnomaly: anomaly,
     anomalyReason: reason,
     elapsedHours: hours

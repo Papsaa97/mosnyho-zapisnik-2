@@ -11,17 +11,16 @@ import {
 } from 'lucide-react';
 import { exportDatabaseBackupToJSON, importDatabaseBackupFromJSON } from '../../services/exportService';
 import { resetToDemoData } from '../../db';
-import { useToast } from '../../utils/toast';
+import { useToast } from '../../utils/toastContext';
 import { triggerHaptic } from '../../utils/haptics';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 interface HeaderProps {
   onNewShift: () => void;
-  onOpenSettings: () => void;
   entriesCount: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entriesCount }) => {
+export const Header: React.FC<HeaderProps> = ({ onNewShift, entriesCount }) => {
   const { showToast } = useToast();
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [showBackupMenu, setShowBackupMenu] = useState<boolean>(false);
@@ -45,11 +44,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
   }, []);
 
   const executeResetData = useCallback(async () => {
-    await resetToDemoData();
-    showToast('Ukázková data byla úspěšně obnovena', 'success');
-    setShowBackupMenu(false);
-    triggerHaptic('success');
-    setConfirmReset(false);
+    try {
+      await resetToDemoData();
+      showToast('Ukázková data byla úspěšně obnovena', 'success');
+      setShowBackupMenu(false);
+      triggerHaptic('success');
+      setConfirmReset(false);
+    } catch {
+      showToast('Chyba při obnově dat', 'error');
+      triggerHaptic('error');
+    }
   }, [showToast]);
 
   const handleBackupExport = useCallback(async () => {
@@ -71,11 +75,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
     const reader = new FileReader();
     reader.onload = async (event) => {
       const content = event.target?.result as string;
-      const success = await importDatabaseBackupFromJSON(content);
-      if (success) {
-        showToast('Záloha byla úspěšně nahrána ✓', 'success');
-        triggerHaptic('success');
-      } else {
+      try {
+        const success = await importDatabaseBackupFromJSON(content);
+        if (success) {
+          showToast('Záloha byla úspěšně nahrána ✓', 'success');
+          triggerHaptic('success');
+        } else {
+          showToast('Chyba při obnově: neplatný soubor', 'error');
+          triggerHaptic('error');
+        }
+      } catch {
         showToast('Chyba při obnově: neplatný soubor', 'error');
         triggerHaptic('error');
       }
@@ -85,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
   }, [showToast]);
 
   return (
-    <header className="no-print sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 shadow-lg">
+    <header className="no-print sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 shadow-lg pt-[max(0.625rem,env(safe-area-inset-top))]">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
         {/* Brand & Identity */}
         <div className="flex items-center gap-2.5 sm:gap-3">
@@ -95,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
-                MONTÁŽNÍ ZÁPISNÍK
+                MOŠNYHO ZÁPISNÍK
                 <span className="text-xs bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">
                   2.0 PRO
                 </span>
@@ -139,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
               onClick={() => setShowBackupMenu(!showBackupMenu)}
               aria-expanded={showBackupMenu}
               aria-haspopup="menu"
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors flex items-center justify-center min-w-[44px] min-h-[44px]"
               title="Správa dat a záloha"
             >
               <Database className="w-4 h-4 text-amber-400" />
@@ -153,13 +162,13 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
 
                 <button
                   onClick={handleBackupExport}
-                  className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="min-h-touch min-h-[44px] w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium transition-colors"
                 >
                   <Download className="w-4 h-4 text-amber-400" />
                   Stáhnout zálohu (JSON)
                 </button>
 
-                <label className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors">
+                <label className="min-h-touch min-h-[44px] w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 flex items-center gap-2 text-xs font-medium cursor-pointer transition-colors">
                   <Upload className="w-4 h-4 text-sky-400" />
                   Obnovit ze zálohy (JSON)
                   <input
@@ -174,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewShift, onOpenSettings, entr
 
                 <button
                   onClick={handleResetData}
-                  className="min-h-touch w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors"
+                  className="min-h-touch min-h-[44px] w-full text-left px-3 py-2 rounded-lg hover:bg-rose-950/40 text-rose-300 flex items-center gap-2 text-xs font-medium transition-colors"
                 >
                   <RotateCcw className="w-4 h-4 text-rose-400" />
                   Obnovit ukázková data

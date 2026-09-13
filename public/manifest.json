@@ -1,6 +1,6 @@
 {
-  "name": "Montážní zápisník 2.0 – Profesionální výkazník prací",
-  "short_name": "Výkazník 2.0",
+  "name": "Mošnyho zápisník 2.0 – Svářečský a montážní výkazník",
+  "short_name": "Mošny 2.0",
   "description": "Profesionální terénní výkazník a kalkulátor pro svářeče, zámečníky a montéry. 100% Offline-First.",
   "start_url": "/",
   "scope": "/",
@@ -13,28 +13,28 @@
   "categories": ["productivity", "utilities", "business"],
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -42,7 +42,7 @@
       "name": "Začít směnu",
       "short_name": "Začít",
       "description": "Okamžitě spustit stopky pro dnešní směnu",
-      "url": "/?action=start_shift",
+      "url": "/?akce=start",
       "icons": [
         {
           "src": "/icon-192.svg",
@@ -54,7 +54,7 @@
       "name": "Konec směny",
       "short_name": "Konec",
       "description": "Ukončit běžící směnu a zapsat odpracovaný čas",
-      "url": "/?action=end_shift",
+      "url": "/?akce=stop",
       "icons": [
         {
           "src": "/icon-192.svg",
@@ -66,7 +66,7 @@
       "name": "Přerušit / Pauza",
       "short_name": "Pauza",
       "description": "Pozastavit nebo obnovit běžící směnu (oběd / přejezd)",
-      "url": "/?action=toggle_pause",
+      "url": "/?akce=pauza",
       "icons": [
         {
           "src": "/icon-192.svg",
@@ -78,7 +78,7 @@
       "name": "Zapsat směnu zpětně",
       "short_name": "Manuální zápis",
       "description": "Otevřít formulář pro manuální zápis směny",
-      "url": "/?action=manual_entry",
+      "url": "/?akce=novy",
       "icons": [
         {
           "src": "/icon-192.svg",

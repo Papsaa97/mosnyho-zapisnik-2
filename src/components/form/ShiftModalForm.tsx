@@ -30,6 +30,7 @@ import { ExtrasSection } from './sections/ExtrasSection';
 import { StatusNotesSection } from './sections/StatusNotesSection';
 import { PhotoSection } from './sections/PhotoSection';
 import { useToast } from '../../utils/toast';
+import { getNextDocumentNumber } from '../../services/documentNumbering';
 
 interface ShiftModalFormProps {
   isOpen: boolean;
@@ -144,6 +145,11 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
       consumableSlip: state.consumableSlip
     });
   }, [totalHours, calculatedHourlyRate, state.manualTotalOverride, state.isManualOverride, state.distanceKm, state.ratePerKm, state.travelTimeHours, state.travelHourlyRate, state.dietAllowance, state.extraCosts, state.consumableSlip]);
+
+  const currentYear = useMemo(() => new Date(state.date || Date.now()).getFullYear(), [state.date]);
+  const suggestedInvoiceNumber = useMemo(() => {
+    return getNextDocumentNumber('VF', currentYear, existingEntries.map(e => e.invoiceNumber));
+  }, [currentYear, existingEntries]);
 
   // Apply a preset
   const handleApplyPreset = (preset: ShiftPreset) => {
@@ -347,6 +353,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
           <StatusNotesSection 
             state={state} 
             dispatch={dispatch} 
+            suggestedInvoiceNumber={suggestedInvoiceNumber}
           />
 
           <PhotoSection

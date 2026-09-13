@@ -132,12 +132,19 @@ export interface ExtraCostItem {
   amount: number;
 }
 
+/** Reusable catalog entry for materials, gases & consumables (Nastavení / Sazebník) */
+export interface MaterialCatalogItem {
+  id: string;
+  name: string;
+  unitPrice: number;
+  unit: string; // e.g. 'ks', 'bal', 'm', 'hod'
+}
+
 export interface EntryPricing {
   baseHourlyRate: number;
   complexityMultiplier: number;
   shiftSurcharges: ShiftSurchargeType[];
   calculatedHourlyRate: number;
-  manualHourlyRateOverride?: number;
   manualTotalOverride?: number;
   isManualOverride?: boolean;
 }
@@ -196,7 +203,6 @@ export interface ShiftCheckoutData {
   isSmartCheckoutRequired: boolean;
   clientName: string;
   projectName: string;
-  projectCode: string;
   workType: WorkType;
   weldingMethod: WeldingMethod;
   events: ShiftTimelineEvent[];
@@ -221,7 +227,6 @@ export interface ActiveShiftState {
   events: ShiftTimelineEvent[];
   clientName: string;
   projectName: string;
-  projectCode: string;
   workType: WorkType;
   weldingMethod: WeldingMethod;
   notes: string;
@@ -231,7 +236,7 @@ export interface ActiveShiftState {
 export interface WorkEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  projectCode: string;
+  projectCode?: string;
   projectName: string;
   clientName: string;
   workType: WorkType;
@@ -267,7 +272,6 @@ export interface WorkEntry {
 export interface ShiftPreset {
   id: string;
   name: string;
-  description: string;
   workType: WorkType;
   baseHourlyRate: number;
   complexityMultiplier: number;
@@ -348,8 +352,12 @@ export interface AppSettings {
   contractor: ContractorProfile;
   rates: RatesConfig;
   clients: ClientProfile[];
+  materialCatalog: MaterialCatalogItem[];
+  /** Last protocol number issued from the A4 handover report (PR-YYYY/XXX), used to suggest the next one. */
+  lastProtocolNumber?: string;
   darkMode: boolean;
   currencySymbol: string;
+  shiftAnomalyLimitHours: number;
 }
 
 // ==========================================

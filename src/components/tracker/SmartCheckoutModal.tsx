@@ -15,6 +15,7 @@ import { calculateNetHours } from '../../services/pricingEngine';
 import { triggerHaptic } from '../../utils/haptics';
 import FocusTrap from 'focus-trap-react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { INPUT_LIMITS } from '../../types';
 
 interface SmartCheckoutModalProps {
   isOpen: boolean;
@@ -336,6 +337,7 @@ export const SmartCheckoutModal: React.FC<SmartCheckoutModalProps> = ({
                         <input
                           type="number"
                           min="0"
+                          max={INPUT_LIMITS.MAX_BREAK_MINUTES}
                           step="5"
                           value={breakMinutes}
                           onChange={(e) => setBreakMinutes(Number(e.target.value) || 0)}

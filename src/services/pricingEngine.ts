@@ -48,23 +48,19 @@ export function calculateEffectiveHourlyRate(
   baseRate: number,
   multiplier: number,
   surcharges: ShiftSurchargeType[],
-  surchargeConfig: SurchargeConfig,
-  manualHourlyRateOverride?: number
+  surchargeConfig: SurchargeConfig
 ): number {
-  if (manualHourlyRateOverride !== undefined && manualHourlyRateOverride > 0) {
-    return manualHourlyRateOverride;
-  }
-
-  const safeBase = Number(baseRate) || 0;
+  const safeBase = Math.max(0, Number(baseRate) || 0);
   const safeMult = Number(multiplier) > 0 ? Number(multiplier) : 1.0;
-  let rateWithMultiplier = safeBase * safeMult;
+  const rateWithMultiplier = safeBase * safeMult;
 
   if (surchargeConfig.useFixedBonus) {
     let bonus = 0;
     if (surcharges.includes('weekend')) bonus += surchargeConfig.fixedWeekendBonus || 0;
     if (surcharges.includes('night')) bonus += surchargeConfig.fixedNightBonus || 0;
     if (surcharges.includes('holiday')) bonus += surchargeConfig.fixedHolidayBonus || 0;
-    return Math.round(rateWithMultiplier + bonus);
+    const result = Math.round(rateWithMultiplier + bonus);
+    return Number.isFinite(result) ? result : 0;
   }
 
   // Percentage surcharges (additive)
@@ -74,7 +70,8 @@ export function calculateEffectiveHourlyRate(
   if (surcharges.includes('holiday')) percentBonus += (surchargeConfig.holidayPercent || 50);
 
   const finalRate = rateWithMultiplier * (1 + percentBonus / 100);
-  return Math.round(finalRate * 10) / 10;
+  const result = Math.round(finalRate * 10) / 10;
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**
@@ -82,7 +79,7 @@ export function calculateEffectiveHourlyRate(
  */
 export function calculateExtraCostsTotal(extraCosts: ExtraCostItem[]): number {
   if (!Array.isArray(extraCosts)) return 0;
-  return extraCosts.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  return extraCosts.reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0), 0);
 }
 
 /**
@@ -95,10 +92,11 @@ export function calculateTravelTotal(
   travelHourlyRate: number,
   dietAllowance: number
 ): number {
-  const kmCost = (Number(distanceKm) || 0) * (Number(ratePerKm) || 0);
-  const timeCost = (Number(travelTimeHours) || 0) * (Number(travelHourlyRate) || 0);
+  const kmCost = Math.max(0, Number(distanceKm) || 0) * Math.max(0, Number(ratePerKm) || 0);
+  const timeCost = Math.max(0, Number(travelTimeHours) || 0) * Math.max(0, Number(travelHourlyRate) || 0);
   const diet = Number(dietAllowance) || 0;
-  return Math.round((kmCost + timeCost + diet) * 100) / 100;
+  const result = Math.round((kmCost + timeCost + diet) * 100) / 100;
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**
@@ -134,7 +132,8 @@ export function calculateGrandTotal(entry: {
   );
   const extraCostsTotal = calculateExtraCostsTotal(entry.extraCosts);
 
-  return Math.round(laborEarnings + travelEarnings + extraCostsTotal);
+  const result = Math.round(laborEarnings + travelEarnings + extraCostsTotal);
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**

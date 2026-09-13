@@ -17,9 +17,10 @@ const COMMON_TAGS = [
 interface StatusNotesSectionProps {
   state: ShiftFormState;
   dispatch: React.Dispatch<ShiftFormAction>;
+  suggestedInvoiceNumber?: string;
 }
 
-export const StatusNotesSection = React.memo<StatusNotesSectionProps>(function StatusNotesSection({ state, dispatch }) {
+export const StatusNotesSection = React.memo<StatusNotesSectionProps>(function StatusNotesSection({ state, dispatch, suggestedInvoiceNumber }) {
   return (
     <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-4">
       {/* 1. 5 Glove-Friendly 1-Touch Activity Chips (min 48px height) */}
@@ -75,7 +76,12 @@ export const StatusNotesSection = React.memo<StatusNotesSectionProps>(function S
               <button
                 key={st.key}
                 type="button"
-                onClick={() => dispatch({ type: 'SET_FIELD', field: 'status', value: st.key })}
+                onClick={() => {
+                  dispatch({ type: 'SET_FIELD', field: 'status', value: st.key });
+                  if (st.key === 'invoiced' && !state.invoiceNumber && suggestedInvoiceNumber) {
+                    dispatch({ type: 'SET_FIELD', field: 'invoiceNumber', value: suggestedInvoiceNumber });
+                  }
+                }}
                 className={`min-h-[44px] p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
                   isSelected
                     ? `${st.color} shadow-md`
@@ -92,14 +98,25 @@ export const StatusNotesSection = React.memo<StatusNotesSectionProps>(function S
       {/* Fakturační číslo pokud je vyfakturováno */}
       {state.status === 'invoiced' && (
         <div className="animate-in fade-in">
-          <label className="block text-xs font-medium text-slate-300 mb-1">
-            Číslo faktury (např. VF-2026/028)
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-slate-300">
+              Číslo faktury (např. VF-2026/028)
+            </label>
+            {suggestedInvoiceNumber && state.invoiceNumber.trim() !== suggestedInvoiceNumber && (
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'SET_FIELD', field: 'invoiceNumber', value: suggestedInvoiceNumber })}
+                className="text-[11px] text-amber-400 hover:underline font-semibold"
+              >
+                Použít návrh: {suggestedInvoiceNumber}
+              </button>
+            )}
+          </div>
           <input
             type="text"
             value={state.invoiceNumber}
             onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'invoiceNumber', value: e.target.value })}
-            placeholder="VF-2026/028"
+            placeholder={suggestedInvoiceNumber || "VF-2026/028"}
             className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none"
           />
         </div>

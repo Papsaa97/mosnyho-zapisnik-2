@@ -112,7 +112,7 @@ export async function checkStorageQuota(): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   try {
     // Request persistent storage to avoid iOS eviction
-    if (navigator.storage && 'persist' in navigator.storage) {
+    if (typeof navigator !== 'undefined' && 'storage' in navigator && 'persist' in navigator.storage) {
       const persisted = await navigator.storage.persist();
       console.log('[DB] Persistent storage:', persisted ? 'granted ✓' : 'denied (data may be cleared)');
     }

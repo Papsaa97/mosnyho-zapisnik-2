@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Play, 
   Pause, 
@@ -45,6 +45,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
   const {
     shiftState,
     status,
+
     startShift,
     pauseShift,
     resumeShift,
@@ -65,7 +66,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     isAnomaly,
     anomalyReason,
     elapsedHours
-  } = useShiftElapsed(shiftState);
+  } = useShiftElapsed(shiftState, settings?.shiftAnomalyLimitHours || 16);
 
   const [noteInput, setNoteInput] = useState<string>('');
   const [showConfig, setShowConfig] = useState<boolean>(false);
@@ -84,7 +85,6 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     startShift({
       clientName: shiftState.clientName || settings.clients[0]?.name || 'Metrostav DIZ s.r.o.',
       projectName: shiftState.projectName || 'Montáž ocelových konstrukcí',
-      projectCode: shiftState.projectCode || 'Hala-C',
       workType: shiftState.workType || 'site_assembly',
       weldingMethod: shiftState.weldingMethod || 'TIG'
     });
@@ -108,8 +108,8 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     const data = getShiftCheckoutData();
     if (!data) return;
 
-    // Protection against forgotten shift: if shift >= 16h or overnight anomaly, do NOT save directly!
-    if (isSmartCheckoutRequired || data.elapsedHours >= 16 || data.isAnomaly) {
+    // Protection against forgotten shift: if the shift ran suspiciously long, do NOT save directly!
+    if (data.isAnomaly) {
       setSmartCheckoutData(data);
       setIsSmartCheckoutOpen(true);
     } else {
@@ -327,7 +327,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
 
           {/* Quick presets */}
           {presets && presets.length > 0 && (
-            <div className="pt-2 border-t border-slate-850">
+            <div className="pt-2 border-t border-slate-800">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                 Rychlé předvolby práce
               </label>
@@ -344,7 +344,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
                       });
                       triggerHaptic('light');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-slate-850 hover:bg-slate-800 text-[11px] font-semibold text-slate-300 hover:text-amber-400 border border-slate-700 transition-colors"
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[11px] font-semibold text-slate-300 hover:text-amber-400 border border-slate-700 transition-colors"
                   >
                     {p.name}
                   </button>
@@ -563,7 +563,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
                         key={sug}
                         type="button"
                         onClick={() => handleAddNote(sug)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 border border-slate-700/80 text-[11px] font-semibold text-slate-300 hover:text-amber-300 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-[11px] font-semibold text-slate-300 hover:text-amber-300 transition-colors"
                       >
                         + {sug}
                       </button>
