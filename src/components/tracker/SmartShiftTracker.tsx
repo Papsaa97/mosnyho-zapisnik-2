@@ -62,7 +62,6 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     netWorkedMs,
     currentPauseDurationMs,
     isWarningLongShift,
-    isSmartCheckoutRequired,
     isAnomaly,
     anomalyReason,
     elapsedHours
@@ -71,6 +70,7 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
   const [noteInput, setNoteInput] = useState<string>('');
   const [showConfig, setShowConfig] = useState<boolean>(false);
   const [showTimeline, setShowTimeline] = useState<boolean>(true);
+  const [isIdleExpanded, setIsIdleExpanded] = useState<boolean>(false);
   const [isSmartCheckoutOpen, setIsSmartCheckoutOpen] = useState<boolean>(false);
   const [smartCheckoutData, setSmartCheckoutData] = useState<ShiftCheckoutData | null>(null);
 
@@ -148,6 +148,66 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
     setNoteInput('');
   };
 
+  // Compact, economical single-line strip when idle and not explicitly expanded
+  if (status === 'idle' && !isIdleExpanded) {
+    return (
+      <section 
+        aria-label="Smart Shift Tracker – Sbalené stopky"
+        className="bg-slate-900/95 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-2.5 sm:p-3 shadow-md flex items-center justify-between gap-2.5 transition-all"
+      >
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center shrink-0 text-amber-400">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-200 truncate">
+                Live Tracker
+              </span>
+              <span className="text-[10px] bg-slate-800 text-slate-400 font-bold px-1.5 py-0.5 rounded border border-slate-700/80 hidden xs:inline">
+                PŘIPRAVENO
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 truncate hidden sm:block">
+              {shiftState.projectName ? `${shiftState.projectName} • ${shiftState.clientName}` : 'Rychlé stopky pro dnešní směnu'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsIdleExpanded(true)}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent hover:border-slate-700 text-xs font-semibold flex items-center gap-1 transition-all"
+            title="Rozbalit plný ovládací panel a předvolby"
+          >
+            <span className="hidden md:inline">Možnosti</span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenManualEntry}
+            className="p-2 rounded-xl text-slate-400 hover:text-amber-400 hover:bg-slate-800 border border-transparent hover:border-slate-700 text-xs font-semibold hidden md:flex items-center gap-1 transition-all"
+            title="Zadat směnu zpětně"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Zpětný zápis</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleStart}
+            className="min-h-[42px] px-3.5 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+          >
+            <Play className="w-4 h-4 fill-slate-950 stroke-[2.5]" />
+            <span>Začít směnu</span>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section 
       aria-label="Smart Shift Tracker – Živá směna"
@@ -200,6 +260,19 @@ export const SmartShiftTracker: React.FC<SmartShiftTrackerProps> = ({
 
         {/* Action icons / toggles */}
         <div className="flex items-center gap-2">
+          {/* Sbalit toggle when idle */}
+          {status === 'idle' && (
+            <button
+              type="button"
+              onClick={() => setIsIdleExpanded(false)}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors"
+              title="Sbalit tracker do jednořádkového pruhu"
+            >
+              <span>Sbalit</span>
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           {/* Notification Permission Prompt */}
           {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && (
             <button

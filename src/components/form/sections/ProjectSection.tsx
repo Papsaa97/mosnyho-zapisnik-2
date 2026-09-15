@@ -15,6 +15,7 @@ interface ProjectSectionProps {
   clientSuggestions: string[];
   projectSuggestions: string[];
   clients?: ClientProfile[];
+  mode?: 'all' | 'basic' | 'passport';
 }
 
 const ISO_METHODS: { code: WeldingMethodCode; label: string; legacy: WeldingMethod }[] = [
@@ -67,6 +68,7 @@ export const ProjectSection = React.memo<ProjectSectionProps>(function ProjectSe
   clientSuggestions,
   projectSuggestions,
   clients,
+  mode = 'all',
 }) {
   const handleClientChange = (name: string) => {
     dispatch({ type: 'SET_FIELD', field: 'clientName', value: name });
@@ -204,130 +206,138 @@ export const ProjectSection = React.memo<ProjectSectionProps>(function ProjectSe
 
   return (
     <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-3.5">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Datum */}
-        <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-amber-400" />
-            Datum směny *
-          </label>
-          <input
-            type="date"
-            value={state.date}
-            onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'date', value: e.target.value })}
-            required
-            className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-          />
-          {isDateWeekend(state.date) && (
-            <span className="text-[11px] text-amber-400 font-bold mt-1 inline-flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> Víkendový den
-            </span>
-          )}
-        </div>
+      {/* Základní údaje směny (Datum, Klient, Zakázka, PDP, Typ práce) */}
+      {(mode === 'all' || mode === 'basic') && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Datum */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                Datum směny *
+              </label>
+              <input
+                type="date"
+                value={state.date}
+                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'date', value: e.target.value })}
+                required
+                className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-semibold focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+              {isDateWeekend(state.date) && (
+                <span className="text-[11px] text-amber-400 font-bold mt-1 inline-flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Víkendový den
+                </span>
+              )}
+            </div>
 
-        {/* Odběratel */}
-        <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Odběratel / Firma *
-          </label>
-          <input
-            type="text"
-            list="client-list"
-            value={state.clientName}
-            onChange={(e) => handleClientChange(e.target.value)}
-            placeholder="např. Metrostav DIZ"
-            required
-            className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
-          />
-          <datalist id="client-list">
-            {clientSuggestions.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </div>
+            {/* Odběratel */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Odběratel / Firma *
+              </label>
+              <input
+                type="text"
+                list="client-list"
+                value={state.clientName}
+                onChange={(e) => handleClientChange(e.target.value)}
+                placeholder="např. Metrostav DIZ"
+                required
+                className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
+              />
+              <datalist id="client-list">
+                {clientSuggestions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
 
-        {/* Kód / Název projektu */}
-        <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Kód / Název zakázky *
-          </label>
-          <input
-            type="text"
-            list="project-list"
-            value={state.projectName}
-            onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'projectName', value: e.target.value })}
-            placeholder="např. Hala C – potrubí DN150"
-            required
-            className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
-          />
-          <datalist id="project-list">
-            {projectSuggestions.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </div>
-      </div>
+            {/* Kód / Název projektu */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Kód / Název zakázky *
+              </label>
+              <input
+                type="text"
+                list="project-list"
+                value={state.projectName}
+                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'projectName', value: e.target.value })}
+                placeholder="např. Hala C – potrubí DN150"
+                required
+                className="min-h-touch w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm font-medium focus:border-amber-500 focus:outline-none"
+              />
+              <datalist id="project-list">
+                {projectSuggestions.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+            </div>
+          </div>
 
-      {/* Režim přenesené daňové povinnosti (§ 92e ZDPH) */}
-      <div className="flex items-center justify-between p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
-        <div className="flex flex-col pr-3">
-          <label htmlFor="pdp-toggle" className="text-xs font-bold text-slate-200 cursor-pointer flex items-center gap-1.5 flex-wrap">
-            <span>Režim přenesené daňové povinnosti (§ 92e ZDPH)</span>
-            {state.isPdp && (
-              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
-                PDP aktivní (0 % DPH)
+          {/* Režim přenesené daňové povinnosti (§ 92e ZDPH) */}
+          <div className="flex items-center justify-between p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
+            <div className="flex flex-col pr-3">
+              <label htmlFor="pdp-toggle" className="text-xs font-bold text-slate-200 cursor-pointer flex items-center gap-1.5 flex-wrap">
+                <span>Režim přenesené daňové povinnosti (§ 92e ZDPH)</span>
+                {state.isPdp && (
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                    PDP aktivní (0 % DPH)
+                  </span>
+                )}
+              </label>
+              <span className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                Stavební a montážní práce CZ-CPA 41–43 (daň odvede zákazník)
               </span>
-            )}
-          </label>
-          <span className="text-[11px] text-slate-400 mt-0.5 leading-tight">
-            Stavební a montážní práce CZ-CPA 41–43 (daň odvede zákazník)
-          </span>
-        </div>
-        <input
-          id="pdp-toggle"
-          type="checkbox"
-          checked={!!state.isPdp}
-          onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'isPdp', value: e.target.checked })}
-          className="w-5 h-5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500 shrink-0"
-        />
-      </div>
+            </div>
+            <input
+              id="pdp-toggle"
+              type="checkbox"
+              checked={!!state.isPdp}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'isPdp', value: e.target.checked })}
+              className="w-5 h-5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500 shrink-0"
+            />
+          </div>
 
-      {/* Typ činnosti (Velké dlaždice pro palec) */}
-      <div>
-        <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-          <Wrench className="w-3.5 h-3.5 text-amber-400" />
-          Typ činnosti
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            { type: 'workshop_welding' as WorkType, label: 'Dílna – svařování', icon: Flame },
-            { type: 'site_assembly' as WorkType, label: 'Montáž stavba', icon: Wrench },
-            { type: 'service_emergency' as WorkType, label: 'Pohotovost / Havárie', icon: AlertTriangle },
-            { type: 'travel_only' as WorkType, label: 'Pouze cesťák', icon: Truck },
-          ].map((item) => {
-            const Icon = item.icon;
-            const isSelected = state.workType === item.type;
-            return (
-              <button
-                key={item.type}
-                type="button"
-                onClick={() => dispatch({ type: 'SET_FIELD', field: 'workType', value: item.type })}
-                className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                  isSelected
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md font-bold'
-                    : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-400'}`} />
-                <span className="text-xs leading-snug">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          {/* Typ činnosti (Velké dlaždice pro palec) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Wrench className="w-3.5 h-3.5 text-amber-400" />
+              Typ činnosti
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { type: 'workshop_welding' as WorkType, label: 'Dílna – svařování', icon: Flame },
+                { type: 'site_assembly' as WorkType, label: 'Montáž stavba', icon: Wrench },
+                { type: 'service_emergency' as WorkType, label: 'Pohotovost / Havárie', icon: AlertTriangle },
+                { type: 'travel_only' as WorkType, label: 'Pouze cesťák', icon: Truck },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isSelected = state.workType === item.type;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_FIELD', field: 'workType', value: item.type })}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                      isSelected
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md font-bold'
+                        : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-400'}`} />
+                    <span className="text-xs leading-snug">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* Metoda svařování dle ISO 4063 */}
-      <div className="pt-1">
+      {/* Svářečské metody ISO a technický pasport EN 1090 */}
+      {(mode === 'all' || mode === 'passport') && (
+        <>
+          {/* Metoda svařování dle ISO 4063 */}
+          <div className="pt-1">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
@@ -587,6 +597,8 @@ export const ProjectSection = React.memo<ProjectSectionProps>(function ProjectSe
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
