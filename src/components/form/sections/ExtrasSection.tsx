@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ShiftFormState, ShiftFormAction } from '../shiftFormReducer';
 import { 
   Layers, 
@@ -33,12 +33,14 @@ interface ExtrasSectionProps {
   state: ShiftFormState;
   dispatch: React.Dispatch<ShiftFormAction>;
   extrasTotal: number;
+  mode?: 'all' | 'materials' | 'fees';
 }
 
 export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSection({ 
   state, 
   dispatch, 
-  extrasTotal 
+  extrasTotal,
+  mode = 'all'
 }) {
   const [activeCategory, setActiveCategory] = useState<ConsumableCategory>('cutting_grinding');
   
@@ -58,11 +60,11 @@ export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSecti
     return STANDARD_CONSUMABLES_CATALOG.filter(item => item.category === activeCategory);
   }, [activeCategory]);
 
-  const handleAddCatalogItem = (template: CatalogTemplateItem) => {
+  const handleAddCatalogItem = useCallback((template: CatalogTemplateItem) => {
     triggerHaptic('selection');
     const billedPrice = calculateConsumableItemBilledPrice(1, template.unitPrice, currentMarkup);
     const item: ConsumableItem = {
-      id: `cons-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      id: `cons-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       category: template.category,
       name: template.name,
       quantity: 1,
@@ -72,9 +74,9 @@ export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSecti
       billedPrice,
     };
     dispatch({ type: 'ADD_CONSUMABLE_ITEM', item });
-  };
+  }, [currentMarkup, dispatch]);
 
-  const handleAddCustomItem = (e: React.FormEvent) => {
+  const handleAddCustomItem = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!customName.trim()) return;
     triggerHaptic('selection');
@@ -84,7 +86,7 @@ export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSecti
     const billedPrice = calculateConsumableItemBilledPrice(qty, price, currentMarkup);
 
     const item: ConsumableItem = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       category: 'custom',
       name: customName.trim(),
       quantity: qty,
@@ -98,29 +100,31 @@ export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSecti
     setCustomName('');
     setCustomQty(1);
     setCustomUnitPrice(100);
-  };
+  }, [customName, customQty, customUnitPrice, customUnit, currentMarkup, dispatch]);
 
-  const handleAddOtherExtra = (desc: string, amount: number) => {
+  const handleAddOtherExtra = useCallback((desc: string, amount: number) => {
     if (!desc.trim() || amount <= 0) return;
     triggerHaptic('light');
     dispatch({
       type: 'ADD_EXTRA',
       item: {
-        id: `extra-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        id: `extra-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         description: desc.trim(),
         amount: Math.round(amount)
       }
     });
-  };
+  }, [dispatch]);
 
   return (
     <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 sm:p-4 space-y-4">
-      {/* 1. Header with live materials badge */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
-        <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-          <Layers className="w-4 h-4 text-amber-400" />
-          Materiálový lístek & montážní komponenty
-        </label>
+      {(mode === 'all' || mode === 'materials') && (
+        <>
+          {/* 1. Header with live materials badge */}
+          <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-amber-400" />
+              Materiálový lístek & montážní komponenty
+            </label>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400">Účtováno celkem:</span>
           <span className="text-sm font-black text-amber-400 font-mono">
@@ -423,55 +427,60 @@ export const ExtrasSection = React.memo<ExtrasSectionProps>(function ExtrasSecti
         </div>
       )}
 
+        </>
+      )}
+
       {/* 7. Miscellaneous Extra Costs (Parking, Permits, Tolls) */}
-      <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Car className="w-3.5 h-3.5 text-amber-400" />
-            Ostatní poplatky & vedlejší náklady (parkovné, povolení)
-          </label>
-          <span className="text-xs font-mono font-bold text-slate-300">
-            {formatCurrency(extrasTotal)}
-          </span>
-        </div>
+      {(mode === 'all' || mode === 'fees') && (
+        <div className={`space-y-2.5 ${mode === 'all' ? 'pt-3 border-t border-slate-800/80' : ''}`}>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Car className="w-3.5 h-3.5 text-amber-400" />
+              Ostatní poplatky & vedlejší náklady (parkovné, povolení)
+            </label>
+            <span className="text-xs font-mono font-bold text-slate-300">
+              {formatCurrency(extrasTotal)}
+            </span>
+          </div>
 
-        {/* Quick pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {COMMON_NON_MATERIAL_EXTRAS.map((c, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleAddOtherExtra(c.description, c.amount)}
-              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium flex items-center gap-1 active:scale-95"
-            >
-              <Plus className="w-3 h-3 text-amber-400" />
-              {c.description} ({c.amount} Kč)
-            </button>
-          ))}
-        </div>
-
-        {/* Other costs list */}
-        {state.extraCosts.length > 0 && (
-          <div className="space-y-1 pt-1">
-            {state.extraCosts.map((item) => (
-              <div 
-                key={item.id} 
-                className="flex items-center justify-between gap-2 p-2 bg-slate-900 border border-slate-800 rounded-xl text-xs"
+          {/* Quick pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {COMMON_NON_MATERIAL_EXTRAS.map((c, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleAddOtherExtra(c.description, c.amount)}
+                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium flex items-center gap-1 active:scale-95"
               >
-                <span className="font-medium text-slate-200 flex-1">{item.description}</span>
-                <span className="font-mono font-bold text-amber-400">{formatCurrency(item.amount)}</span>
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: 'REMOVE_EXTRA', id: item.id })}
-                  className="p-1 text-slate-500 hover:text-rose-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+                <Plus className="w-3 h-3 text-amber-400" />
+                {c.description} ({c.amount} Kč)
+              </button>
             ))}
           </div>
-        )}
-      </div>
+
+          {/* Other costs list */}
+          {state.extraCosts.length > 0 && (
+            <div className="space-y-1 pt-1">
+              {state.extraCosts.map((item) => (
+                <div 
+                  key={item.id} 
+                  className="flex items-center justify-between gap-2 p-2 bg-slate-900 border border-slate-800 rounded-xl text-xs"
+                >
+                  <span className="font-medium text-slate-200 flex-1">{item.description}</span>
+                  <span className="font-mono font-bold text-amber-400">{formatCurrency(item.amount)}</span>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'REMOVE_EXTRA', id: item.id })}
+                    className="p-1 text-slate-500 hover:text-rose-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 });

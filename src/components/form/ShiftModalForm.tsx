@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useReducer } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { 
   X, 
   Save, 
   Flame, 
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  ChevronLeft,
+  Layers
 } from 'lucide-react';
 import { 
   WorkEntry, 
@@ -59,6 +62,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     null as any,
     () => createInitialState(editingEntry, initialValues, settings)
   );
+  const [formStep, setFormStep] = useState<'basic' | 'rates' | 'tech' | 'all'>('basic');
 
   // Close on Escape key
   useEffect(() => {
@@ -73,6 +77,7 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
   useEffect(() => {
     if (isOpen) {
       dispatch({ type: 'RESET', state: createInitialState(editingEntry, initialValues, settings) });
+      setFormStep('basic');
     }
   }, [isOpen, editingEntry, initialValues, settings]);
 
@@ -146,7 +151,13 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
     });
   }, [totalHours, calculatedHourlyRate, state.manualTotalOverride, state.isManualOverride, state.distanceKm, state.ratePerKm, state.travelTimeHours, state.travelHourlyRate, state.dietAllowance, state.extraCosts, state.consumableSlip]);
 
-  const currentYear = useMemo(() => new Date(state.date || Date.now()).getFullYear(), [state.date]);
+  const currentYear = useMemo(() => {
+    if (state.date) {
+      const parsed = parseInt(state.date.slice(0, 4), 10);
+      if (!isNaN(parsed) && parsed > 2000) return parsed;
+    }
+    return 2026;
+  }, [state.date]);
   const suggestedInvoiceNumber = useMemo(() => {
     return getNextDocumentNumber('VF', currentYear, existingEntries.map(e => e.invoiceNumber));
   }, [currentYear, existingEntries]);
@@ -287,80 +298,229 @@ export const ShiftModalForm: React.FC<ShiftModalFormProps> = ({
           </button>
         </div>
 
+        {/* Step Selector Navigation Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 sm:px-6 pt-2">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setFormStep('basic')}
+              className={`px-3 py-2 text-xs font-bold rounded-t-xl border-b-2 flex items-center gap-1.5 transition-all ${
+                formStep === 'basic'
+                  ? 'border-amber-400 text-amber-400 bg-slate-900 shadow-sm'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                formStep === 'basic' ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'
+              }`}>1</span>
+              <span>1. Základ</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormStep('rates')}
+              className={`px-3 py-2 text-xs font-bold rounded-t-xl border-b-2 flex items-center gap-1.5 transition-all ${
+                formStep === 'rates'
+                  ? 'border-amber-400 text-amber-400 bg-slate-900 shadow-sm'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                formStep === 'rates' ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'
+              }`}>2</span>
+              <span>2. Sazby & Doprava</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormStep('tech')}
+              className={`px-3 py-2 text-xs font-bold rounded-t-xl border-b-2 flex items-center gap-1.5 transition-all ${
+                formStep === 'tech'
+                  ? 'border-amber-400 text-amber-400 bg-slate-900 shadow-sm'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                formStep === 'tech' ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'
+              }`}>3</span>
+              <span>3. Pasport & Materiál</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setFormStep(formStep === 'all' ? 'basic' : 'all')}
+            className="text-[11px] text-slate-400 hover:text-amber-400 font-semibold py-1 px-2 rounded hidden sm:flex items-center gap-1"
+            title="Přepnout zobrazení všech sekcí najednou"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>{formStep === 'all' ? 'Krokový režim' : 'Zobrazit vše'}</span>
+          </button>
+        </div>
+
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-sm">
           
-          {/* Preset Chips */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Rychlé šablony (Presety zakázky)
-              </label>
-              <span className="text-[11px] text-slate-400">Kliknutím vyplníte sazby a parametry</span>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
-              {presets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handleApplyPreset(preset)}
-                  className="flex-shrink-0 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-750 hover:border-amber-500/50 border border-slate-700 text-xs font-semibold rounded-xl text-slate-200 hover:text-amber-300 transition-all flex items-center gap-1.5 active:scale-95"
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* STEP 1: Základní údaje o směně */}
+          {(formStep === 'basic' || formStep === 'all') && (
+            <div className="space-y-5 animate-in fade-in">
+              {/* Preset Chips */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Rychlé šablony (Presety zakázky)
+                  </label>
+                  <span className="text-[11px] text-slate-400">Kliknutím předvyplníte parametry</span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
+                  {presets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className="flex-shrink-0 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-750 hover:border-amber-500/50 border border-slate-700 text-xs font-semibold rounded-xl text-slate-200 hover:text-amber-300 transition-all flex items-center gap-1.5 active:scale-95"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <ProjectSection 
-            state={state} 
-            dispatch={dispatch} 
-            clientSuggestions={clientSuggestions} 
-            projectSuggestions={projectSuggestions} 
-            clients={settings.clients}
-          />
-          
-          <TimeSection 
-            state={state} 
-            dispatch={dispatch} 
-            totalHours={totalHours} 
-            timeValidationError={timeValidationError} 
-          />
-          
-          <PricingSection 
-            state={state} 
-            dispatch={dispatch} 
-            calculatedHourlyRate={calculatedHourlyRate} 
-            settings={settings} 
-          />
-          
-          <TravelSection 
-            state={state} 
-            dispatch={dispatch} 
-            travelTotal={travelTotal} 
-            totalHours={totalHours} 
-            settings={settings} 
-          />
-          
-          <ExtrasSection 
-            state={state} 
-            dispatch={dispatch} 
-            extrasTotal={extrasTotal} 
-          />
-          
-          <StatusNotesSection 
-            state={state} 
-            dispatch={dispatch} 
-            suggestedInvoiceNumber={suggestedInvoiceNumber}
-          />
+              <ProjectSection 
+                state={state} 
+                dispatch={dispatch} 
+                clientSuggestions={clientSuggestions} 
+                projectSuggestions={projectSuggestions} 
+                clients={settings.clients}
+                mode={formStep === 'all' ? 'all' : 'basic'}
+              />
+              
+              <TimeSection 
+                state={state} 
+                dispatch={dispatch} 
+                totalHours={totalHours} 
+                timeValidationError={timeValidationError} 
+              />
 
-          <PhotoSection
-            state={state}
-            dispatch={dispatch}
-            contractorName={settings.contractor.name}
-          />
+              {formStep === 'basic' && (
+                <div className="pt-2 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">
+                    Pro rychlý záznam můžete směnu ihned uložit dole, nebo pokračovat na upřesnění sazeb a dopravy.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFormStep('rates')}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ml-3"
+                  >
+                    <span>Sazby & Doprava</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* STEP 2: Sazby, cestovné a poplatky */}
+          {(formStep === 'rates' || formStep === 'all') && (
+            <div className="space-y-5 animate-in fade-in">
+              <PricingSection 
+                state={state} 
+                dispatch={dispatch} 
+                calculatedHourlyRate={calculatedHourlyRate} 
+                settings={settings} 
+              />
+              
+              <TravelSection 
+                state={state} 
+                dispatch={dispatch} 
+                travelTotal={travelTotal} 
+                totalHours={totalHours} 
+                settings={settings} 
+              />
+              
+              <ExtrasSection 
+                state={state} 
+                dispatch={dispatch} 
+                extrasTotal={extrasTotal} 
+                mode={formStep === 'all' ? 'all' : 'fees'}
+              />
+
+              {formStep === 'rates' && (
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setFormStep('basic')}
+                    className="px-3 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Zpět na Základ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormStep('tech')}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 active:scale-95 transition-all"
+                  >
+                    <span>Pasport & Materiál</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* STEP 3: Technický pasport, montážní materiál, fotodokumentace a poznámky */}
+          {(formStep === 'tech' || formStep === 'all') && (
+            <div className="space-y-5 animate-in fade-in">
+              {/* Technický pasport a metody svařování (pouze v krokovém režimu, v all je součástí ProjectSection nahoře) */}
+              {formStep === 'tech' && (
+                <ProjectSection 
+                  state={state} 
+                  dispatch={dispatch} 
+                  clientSuggestions={clientSuggestions} 
+                  projectSuggestions={projectSuggestions} 
+                  clients={settings.clients}
+                  mode="passport"
+                />
+              )}
+
+              {/* Montážní spotřební materiál (pouze v krokovém režimu, v all je součástí ExtrasSection nahoře) */}
+              {formStep === 'tech' && (
+                <ExtrasSection 
+                  state={state} 
+                  dispatch={dispatch} 
+                  extrasTotal={extrasTotal} 
+                  mode="materials"
+                />
+              )}
+
+              <PhotoSection
+                state={state}
+                dispatch={dispatch}
+                contractorName={settings.contractor.name}
+              />
+
+              <StatusNotesSection 
+                state={state} 
+                dispatch={dispatch} 
+                suggestedInvoiceNumber={suggestedInvoiceNumber}
+              />
+
+              {formStep === 'tech' && (
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setFormStep('rates')}
+                    className="px-3 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Zpět na Sazby</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
         </form>
 

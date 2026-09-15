@@ -49,3 +49,52 @@ Integrity mode: development
 - [ ] Připojené fotografie se před uložením do IndexedDB automaticky zkomprimují (pod 500 KB na snímek).
 - [ ] Aplikace funguje 100% offline bez nutnosti internetového připojení.
 - [ ] Projekt prochází `npm run build` a TypeScript kontrolou bez chyb.
+
+## 2026-09-15T16:22:13Z
+
+This is a single self-contained fix; keep it small and focused.
+Kompletní UI/UX redesign a zjednodušení informační architektury aplikace Mošnyho zápisník 2.0. Cílem je odstranit vizuální chaos, zajistit okamžitou viditelnost klíčových dat na mobilu i desktopu a zpříjemnit každodenní práci řemeslníka v terénu.
+
+Working directory: /home/miichalpapi/Mošny
+Integrity mode: development
+
+## Requirements
+
+### R1. Kompaktní a přehledná hlavní obrazovka (Deník směn)
+- **Sbalitelný Live Tracker (Stopky)**: Pokud stopky neběží (stav `idle`), panel se zobrazí jako úsporný, elegantní jednořádkový pruh s rychlým tlačítkem pro spuštění. Plný ovládací panel s mezičasy a poznámkami se rozbalí pouze v momentě, kdy je směna aktivní, pozastavená nebo na explicitní kliknutí uživatele.
+- **Sbalitelná filtrace & vyhledávání**: Převést rozsáhlý blok mnoha výběrových polí (stav, měsíc, klient, typ práce, řazení) na kompaktní vyhledávací řádek s tlačítkem „Filtry“, které otevírá rozbalovací panel nebo drawer s indikátorem počtu aktivních filtrů a tlačítkem pro rychlý reset.
+- **Minimalistický souhrn (KPIs)**: Zjednodušit 4 velké KPI boxy tak, aby nezabíraly vertikální prostor a aby na mobilním displeji byly ihned po otevření viditelné poslední záznamy směn.
+
+### R2. Hierarchické a uklidněné karty směn (EntryCard)
+- **Odstranění vizuálního šumu (badge clutter)**: Redukovat množství svítících štítků. Základní pohled na kartu musí prioritně zobrazovat pouze:
+  1. Název zakázky / projekt a odběratele
+  2. Datum a odpracovaný čas (od-do, celkový počet hodin)
+  3. Celkový výdělek (výrazná typografie) a stavový štítek (Koncept / Odevzdáno / Vyfakturováno / Zaplaceno)
+- **Strukturovaný detail**: Technické parametry svářečského pasportu (metoda ISO, tloušťka, jakost, VT zkouška), detailní rozpad nákladů (cestovné, stravné, spotřební materiál) a fotodokumentaci zobrazovat v přehledně organizovaném rozbalovacím detailu karty.
+- **Rychlé a ergonomické akce**: Snadno přístupná tlačítka pro editaci, změnu fakturačního stavu a smazání.
+
+### R3. Optimalizace terénního formuláře směny (ShiftModalForm)
+- **Logické rozdělení na Základní zápis a Rozšířené detaily**:
+  1. *Krok 1 (Základ)*: Datum, čas začátku a konce, rychlé tlačítko pauzy, výběr projektu/klienta a typ práce. Umožnit bleskové uložení bez nutnosti rolovat přes desítky nepovinných polí.
+  2. *Krok 2 (Sazby a doprava)*: Hodinová sazba, příplatky za víkend/noc/výšky, kilometry a automatické stravné dle MPSV.
+  3. *Krok 3 (Technický pasport & materiál)*: Svářečské metody ISO, jakosti oceli, tloušťka, šarže drátu, VT kontrola, montážní materiál a fotodokumentace.
+- **Zachování plné reaktivity**: Zachovat dynamický propočet celkové částky v reálném čase, presety a automatické návrhy.
+
+### R4. Čistá globální hlavička a navigace
+- **Přesun servisních funkcí**: Správu záloh (export JSON, import JSON, reset demo dat) přesunout z horní hlavičky do záložky Nastavení / Profil.
+- **Minimalistická hlavička**: V záhlaví ponechat pouze název aplikace, indikaci offline/online a primární tlačítko pro nový zápis.
+- **Zachování 100% stávající funkčnosti**: Tiskový protokol A4 se Sign-on-Glass a platebním QR kódem SPAYD, Kanban pipeline a Dexie IndexedDB zůstávají plně integrovány.
+
+## Acceptance Criteria
+
+### Ergonomie a layout
+- [ ] V neaktivním stavu stopek zabírá tracker a filtrace na mobilní obrazovce méně než 35 % výšky viewportu, takže jsou okamžitě bez scrollování čitelné první záznamy směn.
+- [ ] Karty směn mají jasnou vizuální hierarchii bez přeplácanosti barevnými štítky v základním zobrazení.
+- [ ] Formulář směny umožňuje rychlé uložení základních údajů bez nutnosti scrollovat přes nepoužité sekce technického pasportu.
+- [ ] Tlačítka pro zálohování a obnovu dat jsou čistě umístěna v sekci Nastavení.
+
+### Technická integrita a stabilita
+- [ ] Celá testovací sada Vitest (`npm test`) prochází na 100 % bez selhání (všech 774 testů nebo aktualizovaných UI testů).
+- [ ] Produkční build (`npm run build`) proběhne s nulovými chybami TypeScriptu a Vite.
+- [ ] Linter (`npm run lint`) nehlásí žádné syntaktické či pravidlové chyby.
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   SlidersHorizontal,
   DollarSign,
@@ -12,10 +12,19 @@ import {
   Building2,
   Search,
   Loader2,
-  Layers
+  Layers,
+  Database,
+  Download,
+  Upload,
+  RotateCcw,
+  ShieldCheck
 } from 'lucide-react';
 import { AppSettings, ShiftPreset, ClientProfile, MaterialCatalogItem } from '../../types';
 import { fetchAresData } from '../../services/aresService';
+import { exportDatabaseBackupToJSON, importDatabaseBackupFromJSON } from '../../services/exportService';
+import { resetToDemoData } from '../../db';
+import { triggerHaptic } from '../../utils/haptics';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../../utils/toast';
 
 const CATALOG_UNITS = ['ks', 'bal', 'm', 'kg', 'hod'];
@@ -33,12 +42,64 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
   onSaveSettings,
   onSavePresets
 }) => {
-  const [activeTab, setActiveTab] = useState<'rates' | 'contractor' | 'presets' | 'catalog' | 'clients'>('rates');
+  const [activeTab, setActiveTab] = useState<'rates' | 'contractor' | 'presets' | 'catalog' | 'clients' | 'backup'>('rates');
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [localPresets, setLocalPresets] = useState<ShiftPreset[]>(presets);
   const [savedAlert, setSavedAlert] = useState<boolean>(false);
   const [aresLoading, setAresLoading] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState<boolean>(false);
   const { showToast } = useToast();
+
+  const handleResetData = useCallback(() => {
+    setConfirmReset(true);
+  }, []);
+
+  const executeResetData = useCallback(async () => {
+    try {
+      await resetToDemoData();
+      showToast('Ukázková data byla úspěšně obnovena', 'success');
+      triggerHaptic('success');
+      setConfirmReset(false);
+    } catch {
+      showToast('Chyba při obnově dat', 'error');
+      triggerHaptic('error');
+    }
+  }, [showToast]);
+
+  const handleBackupExport = useCallback(async () => {
+    try {
+      await exportDatabaseBackupToJSON();
+      showToast('Kompletní záloha JSON byla stažena ✓', 'success');
+      triggerHaptic('success');
+    } catch {
+      showToast('Chyba při exportu zálohy', 'error');
+      triggerHaptic('error');
+    }
+  }, [showToast]);
+
+  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+      try {
+        const success = await importDatabaseBackupFromJSON(content);
+        if (success) {
+          showToast('Záloha byla úspěšně nahrána ✓', 'success');
+          triggerHaptic('success');
+        } else {
+          showToast('Chyba při obnově: neplatný soubor', 'error');
+          triggerHaptic('error');
+        }
+      } catch {
+        showToast('Chyba při obnově: neplatný soubor', 'error');
+        triggerHaptic('error');
+      }
+    };
+    reader.readAsText(file);
+  }, [showToast]);
 
   const handleLoadAresContractor = async () => {
     if (!formData.contractor.ico) return;
@@ -250,6 +311,7 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
           { id: 'catalog' as const, label: 'Katalog materiálu', icon: Layers },
           { id: 'contractor' as const, label: 'Profil dodavatele (OSVČ)', icon: User },
           { id: 'clients' as const, label: 'Adresář odběratelů', icon: Building2 },
+          { id: 'backup' as const, label: 'Zálohování & Data', icon: Database },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -926,6 +988,123 @@ export const RatesSettingsModal: React.FC<RatesSettingsModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Tab 5: Zálohování & Data */}
+      {activeTab === 'backup' && (
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow space-y-6">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="text-sm font-black text-white flex items-center gap-2">
+              <Database className="w-4 h-4 text-amber-400" />
+              Správa databáze a offline zálohy
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Bezpečná správa vašich záznamů směn, sazebníků a fotodokumentace
+            </p>
+          </div>
+
+          {/* Local storage info card */}
+          <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="text-xs space-y-1">
+              <span className="font-bold text-white block">100% Offline-First bezpečnost dat</span>
+              <p className="text-slate-400 leading-relaxed">
+                Veškerá data o zakázkách, cenách, fotkách a podpisech jsou bezpečně uložena přímo ve vašem prohlížeči (IndexedDB).
+                Žádná data se neposílají na cizí servery. Pravidelným stažením JSON zálohy ochráníte svá data před nechtěným smazáním mezipaměti zařízení.
+              </p>
+            </div>
+          </div>
+
+          {/* Backup & Restore Action Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Export JSON */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                  <Download className="w-4 h-4" />
+                  <span>Stáhnout zálohu databáze</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Exportuje kompletní databázi (směny, sazebníky, profily klientů i fotodokumentaci) do jednoho JSON souboru.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBackupExport}
+                className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-amber-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow"
+                style={{ minHeight: '44px' }}
+              >
+                <Download className="w-4 h-4 text-amber-400" />
+                <span>STÁHNOUT ZÁLOHU (JSON)</span>
+              </button>
+            </div>
+
+            {/* Import JSON */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-sky-400 font-bold text-sm">
+                  <Upload className="w-4 h-4" />
+                  <span>Obnovit data ze zálohy</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Nahraje dříve stažený JSON soubor a obnoví veškeré záznamy a nastavení do této aplikace.
+                </p>
+              </div>
+
+              <label className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-750 text-sky-300 hover:text-sky-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow"
+                style={{ minHeight: '44px' }}>
+                <Upload className="w-4 h-4 text-sky-400" />
+                <span>OBNOVIT ZE ZÁLOHY (JSON)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportFile}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Reset Demo Data Danger Zone */}
+          <div className="pt-4 border-t border-slate-800/80">
+            <div className="p-4 bg-rose-950/20 border border-rose-900/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                  <RotateCcw className="w-4 h-4 text-rose-400" />
+                  Obnovit ukázková data svářeče (Reset)
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Vrátí databázi do výchozího stavu s ukázkovými montážemi, šablonami a certifikacemi.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetData}
+                className="px-4 py-2 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-xl text-xs font-bold flex items-center gap-2 self-start sm:self-auto transition-colors shrink-0"
+                style={{ minHeight: '40px' }}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Obnovit ukázku</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Reset Dialog */}
+      <ConfirmDialog
+        isOpen={confirmReset}
+        title="Obnovit ukázková data?"
+        message="Opravdu chcete obnovit výchozí ukázková data svářeče? Všechny úpravy budou přepsány ukázkou."
+        confirmLabel="Obnovit"
+        cancelLabel="Zrušit"
+        variant="warning"
+        onConfirm={executeResetData}
+        onCancel={() => setConfirmReset(false)}
+      />
     </div>
   );
 };

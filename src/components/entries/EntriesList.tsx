@@ -6,7 +6,12 @@ import {
   Download, 
   Plus, 
   Building2,
-  HardHat
+  HardHat,
+  SlidersHorizontal,
+  ChevronDown,
+  X,
+  RotateCcw,
+  ArrowUpDown
 } from 'lucide-react';
 import { WorkEntry, WorkEntryStatus, ShiftPreset, AppSettings, ShiftCheckoutData } from '../../types';
 import { EntryCard } from './EntryCard';
@@ -139,13 +144,34 @@ export const EntriesList: React.FC<EntriesListProps> = ({
     return counts;
   }, [entries]);
 
+  const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedStatus !== 'all') count++;
+    if (selectedMonth !== 'all') count++;
+    if (selectedClient !== 'all') count++;
+    if (selectedWorkType !== 'all') count++;
+    if (sortBy !== 'date_desc') count++;
+    return count;
+  }, [selectedStatus, selectedMonth, selectedClient, selectedWorkType, sortBy]);
+
+  const handleResetFilters = () => {
+    setSelectedStatus('all');
+    setSelectedMonth('all');
+    setSelectedClient('all');
+    setSelectedWorkType('all');
+    setSearchQuery('');
+    setSortBy('date_desc');
+  };
+
   const handleExportFilteredCSV = () => {
     exportEntriesToCSV(filteredEntries, `vyber_${selectedMonth}`);
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-24 md:pb-12">
-      {/* Dominant Smart Shift Tracker Panel */}
+    <div className="space-y-3.5 max-w-7xl mx-auto pb-24 md:pb-12">
+      {/* Live Smart Shift Tracker Panel */}
       <SmartShiftTracker
         timer={timer}
         onFinishShift={onFinishLiveShift}
@@ -154,184 +180,236 @@ export const EntriesList: React.FC<EntriesListProps> = ({
         settings={settings}
       />
       
-      {/* Top Filter & Search Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Search bar */}
+      {/* Compact Search Bar & Filter Toggle */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 sm:p-3 shadow-md space-y-2.5">
+        <div className="flex items-center gap-2">
+          {/* Search input with clear button */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Hledat v zakázkách, poznámkách, metodách sváru..."
-              className="min-h-touch w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+              className="w-full min-h-[40px] bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-8 py-1.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                title="Vymazat hledání"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          {/* Quick CSV Export & Sort */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'date_desc' | 'date_asc' | 'price_desc')}
-                className="min-h-touch bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 focus:outline-none focus:border-amber-500"
+          {/* Filters Toggle Button with Active Count Badge */}
+          <button
+            type="button"
+            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+            className={`min-h-[40px] px-3 sm:px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              isFiltersOpen || activeFiltersCount > 0
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
+            }`}
+            title="Rozbalit podrobné filtry a řazení"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+            <span>Filtry</span>
+            {activeFiltersCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isFiltersOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Quick Reset Button if any filter or search is applied */}
+          {(activeFiltersCount > 0 || searchQuery) && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="min-h-[40px] px-2.5 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-400 hover:text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
+              title="Resetovat všechny filtry a vyhledávání"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          )}
+
+          {/* Quick CSV Export */}
+          <button
+            type="button"
+            onClick={handleExportFilteredCSV}
+            className="min-h-[40px] p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
+            title="Exportovat aktuální výběr do CSV pro Excel"
+          >
+            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden md:inline">CSV</span>
+          </button>
+        </div>
+
+        {/* Collapsible Filter Panel */}
+        {isFiltersOpen && (
+          <div className="pt-2.5 border-t border-slate-800 space-y-3 animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Filtrovat záznamy podle stavu a parametrů
+              </span>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-[11px] font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1"
               >
-                <option value="date_desc">Nejnovější směny</option>
-                <option value="date_asc">Nejstarší směny</option>
-                <option value="price_desc">Nejvyšší výdělek</option>
-              </select>
+                <RotateCcw className="w-3 h-3" />
+                <span>Resetovat filtry</span>
+              </button>
             </div>
 
-            <button
-              onClick={handleExportFilteredCSV}
-              className="min-h-touch flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 rounded-xl transition-colors"
-              title="Exportovat aktuální výběr do CSV pro Excel"
-            >
-              <Download className="w-4 h-4 text-amber-400" />
-              <span className="hidden xs:inline">CSV Export</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Status Chips Selector */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-          {[
-            { id: 'all', label: 'Všechny stavy', count: statusCounts.all },
-            { id: 'draft', label: 'Koncept', count: statusCounts.draft },
-            { id: 'submitted', label: 'Odevzdáno', count: statusCounts.submitted },
-            { id: 'invoiced', label: 'Vyfakturováno', count: statusCounts.invoiced },
-            { id: 'paid', label: 'Zaplaceno', count: statusCounts.paid },
-          ].map((st) => {
-            const isSelected = selectedStatus === st.id;
-            return (
-              <button
-                key={st.id}
-                onClick={() => setSelectedStatus(st.id)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
-                  isSelected
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-md'
-                    : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-                style={{ minHeight: '38px' }}
-              >
-                <span>{st.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  isSelected ? 'bg-slate-950 text-amber-400' : 'bg-slate-800 text-slate-300'
-                }`}>
-                  {st.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Dropdown Filters: Month, Client, Work Type */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-800">
-          {/* Měsíc */}
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
-            >
-              <option value="all">Všechny měsíce</option>
-              {availableMonths.map(m => {
-                const [year, month] = m.split('-');
-                const monthName = new Date(Number(year), Number(month) - 1, 1).toLocaleString('cs-CZ', { month: 'long', year: 'numeric' });
+            {/* Status Chips Selector */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+              {[
+                { id: 'all', label: 'Všechny stavy', count: statusCounts.all },
+                { id: 'draft', label: 'Koncept', count: statusCounts.draft },
+                { id: 'submitted', label: 'Odevzdáno', count: statusCounts.submitted },
+                { id: 'invoiced', label: 'Vyfakturováno', count: statusCounts.invoiced },
+                { id: 'paid', label: 'Zaplaceno', count: statusCounts.paid },
+              ].map((st) => {
+                const isSelected = selectedStatus === st.id;
                 return (
-                  <option key={m} value={m}>{monthName}</option>
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setSelectedStatus(st.id)}
+                    className={`flex-shrink-0 px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                      isSelected
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
+                        : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:text-slate-200'
+                    }`}
+                    style={{ minHeight: '34px' }}
+                  >
+                    <span>{st.label}</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      isSelected ? 'bg-slate-950 text-amber-400' : 'bg-slate-800 text-slate-300'
+                    }`}>
+                      {st.count}
+                    </span>
+                  </button>
                 );
               })}
-            </select>
-          </div>
+            </div>
 
-          {/* Odběratel */}
-          <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <select
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
-            >
-              <option value="all">Všichni odběratelé</option>
-              {availableClients.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+            {/* Dropdown Filters: Month, Client, Work Type, Sort */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1 border-t border-slate-800/60">
+              {/* Měsíc */}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
+                >
+                  <option value="all">Všechny měsíce</option>
+                  {availableMonths.map(m => {
+                    const [year, month] = m.split('-');
+                    const monthName = new Date(Number(year), Number(month) - 1, 1).toLocaleString('cs-CZ', { month: 'long', year: 'numeric' });
+                    return (
+                      <option key={m} value={m}>{monthName}</option>
+                    );
+                  })}
+                </select>
+              </div>
 
-          {/* Typ práce */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <select
-              value={selectedWorkType}
-              onChange={(e) => setSelectedWorkType(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
-            >
-              <option value="all">Všechny typy prací</option>
-              <option value="workshop_welding">Dílna – svařování</option>
-              <option value="site_assembly">Montáž na stavbě</option>
-              <option value="service_emergency">Pohotovost / Havárie</option>
-              <option value="travel_only">Pouze cesťák</option>
-            </select>
+              {/* Odběratel */}
+              <div className="flex items-center gap-2">
+                <Building2 className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <select
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
+                >
+                  <option value="all">Všichni odběratelé</option>
+                  {availableClients.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Typ práce */}
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <select
+                  value={selectedWorkType}
+                  onChange={(e) => setSelectedWorkType(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
+                >
+                  <option value="all">Všechny typy prací</option>
+                  <option value="workshop_welding">Dílna – svařování</option>
+                  <option value="site_assembly">Montáž na stavbě</option>
+                  <option value="service_emergency">Pohotovost / Havárie</option>
+                  <option value="travel_only">Pouze cesťák</option>
+                </select>
+              </div>
+
+              {/* Řazení */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'date_desc' | 'date_asc' | 'price_desc')}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none"
+                >
+                  <option value="date_desc">Nejnovější směny</option>
+                  <option value="date_asc">Nejstarší směny</option>
+                  <option value="price_desc">Nejvyšší výdělek</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Summary KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        {/* Celkový výdělek */}
-        <div className="bg-gradient-to-br from-amber-500/15 to-amber-600/5 border border-amber-500/30 rounded-2xl p-3 sm:p-4 shadow">
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-400 block mb-1">
-            Fakturovaná částka
-          </span>
-          <span className="text-lg sm:text-2xl font-black text-amber-300 font-mono tracking-tight block">
-            {formatCurrency(summary.totalEarnings)}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">
-            průměr {summary.avgRate} Kč/h
-          </span>
-        </div>
+      {/* Streamlined Minimalist Summary KPI Strip */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 items-center">
+          <div className="flex items-baseline justify-between md:justify-start md:gap-2">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-400">
+              Fakturováno:
+            </span>
+            <span className="text-sm sm:text-base font-black text-amber-300 font-mono tracking-tight">
+              {formatCurrency(summary.totalEarnings)}
+            </span>
+          </div>
 
-        {/* Odpracováno hodin */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Odpracováno hodin
-          </span>
-          <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-tight block">
-            {summary.totalHours.toFixed(1).replace('.', ',')} h
-          </span>
-          <span className="text-[11px] text-emerald-400 font-semibold mt-0.5 block">
-            {filteredEntries.length} směn v součtu
-          </span>
-        </div>
+          <div className="flex items-baseline justify-between md:justify-start md:gap-2">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
+              Hodin:
+            </span>
+            <span className="text-xs sm:text-sm font-black text-white font-mono">
+              {summary.totalHours.toFixed(1).replace('.', ',')} h
+              <span className="text-[10px] text-slate-400 ml-1 font-normal hidden sm:inline">({filteredEntries.length} směn)</span>
+            </span>
+          </div>
 
-        {/* Ujeto km */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Ujeto kilometrů
-          </span>
-          <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-tight block">
-            {summary.totalKm} km
-          </span>
-          <span className="text-[11px] text-sky-400 font-semibold mt-0.5 block">
-            dodávkou na zakázky
-          </span>
-        </div>
+          <div className="flex items-baseline justify-between md:justify-start md:gap-2">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
+              Cesty:
+            </span>
+            <span className="text-xs sm:text-sm font-black text-white font-mono">
+              {summary.totalKm} km
+            </span>
+          </div>
 
-        {/* Stravné celkem */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Stravné / Diety
-          </span>
-          <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-tight block">
-            {formatCurrency(summary.totalDiets)}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">
-            zákonné náhrady
-          </span>
+          <div className="flex items-baseline justify-between md:justify-start md:gap-2">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
+              Stravné:
+            </span>
+            <span className="text-xs sm:text-sm font-black text-white font-mono">
+              {formatCurrency(summary.totalDiets)}
+            </span>
+          </div>
         </div>
       </div>
 
