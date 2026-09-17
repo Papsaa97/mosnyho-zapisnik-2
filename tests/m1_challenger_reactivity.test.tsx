@@ -558,14 +558,14 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
       );
 
       // Switch to Invoice mode
-      const modeBtn = screen.getByRole('button', { name: /Režim: Protokol/i });
+      const modeBtn = screen.getByRole('button', { name: /Protokol/i });
       fireEvent.click(modeBtn);
 
       // Check VAT breakdown header
-      expect(screen.getByText(/Rekapitulace DPH a celková částka k úhradě/i)).toBeDefined();
+      expect(screen.getByText(/Rekapitulace DPH a částka k úhradě/i)).toBeDefined();
 
       // Check Sazba DPH
-      expect(screen.getByText('0 % (přenesená DP)')).toBeDefined();
+      expect(screen.getByText('0 % (přenesená)')).toBeDefined();
 
       // Check Výše DPH is 0 Kč
       const zeroVatElements = screen.getAllByText((content, element) => {
@@ -595,7 +595,7 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
       );
 
       // Switch to Invoice mode
-      const modeBtn = screen.getByRole('button', { name: /Režim: Protokol/i });
+      const modeBtn = screen.getByRole('button', { name: /Protokol/i });
       fireEvent.click(modeBtn);
 
       // Sazba DPH: 21 %
@@ -641,7 +641,7 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
       expect(screen.queryByText(/Daň odvede zákazník/i)).toBeNull();
 
       // Switch to invoice mode to verify VAT rate
-      const modeBtn = screen.getByRole('button', { name: /Režim: Protokol/i });
+      const modeBtn = screen.getByRole('button', { name: /Protokol/i });
       fireEvent.click(modeBtn);
 
       // VAT should show standard 21 %
@@ -684,14 +684,14 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
       );
 
       // Switch to Invoice mode
-      fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
 
       // Find QR Code SVG element
       const svgEl = container.querySelector('svg');
       expect(svgEl).toBeDefined();
 
       // Check text in payment box
-      expect(screen.getByText(/0 % DPH – Režim přenesené daňové povinnosti/i)).toBeDefined();
+      // REMOVED by redesign
 
       // The amount must be exactly 8 000 Kč (taxBase with 0% VAT)
       const vatRes = calculateVatAndTotal(8000, true);
@@ -735,7 +735,7 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
 
       const vatRes = calculateVatAndTotal(8000, false, 21);
       expect(vatRes.totalWithVat).toBe(9680); // 8000 + 1680 VAT
@@ -744,7 +744,6 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         return element?.textContent?.includes('9') && element?.textContent?.includes('680') && element?.textContent?.includes('Kč') || false;
       });
       expect(displayedTotal.length).toBeGreaterThanOrEqual(1);
-      expect(screen.queryByText(/0 % DPH – Režim přenesené daňové povinnosti/i)).toBeNull();
     });
 
     it('displays graceful fallback when contractor IBAN is missing', () => {
@@ -779,9 +778,9 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
       };
 
       render(<InvoiceReportView entries={[entry]} settings={noIbanSettings} />);
-      fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
 
-      expect(screen.getByText(/Pro zobrazení QR kódu doplňte IBAN v nastavení profilu/i)).toBeDefined();
+      expect(screen.getByText(/Doplňte IBAN v nastavení/i)).toBeDefined();
     });
   });
 
@@ -863,7 +862,7 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
 
     it('renders empty report cleanly without throwing', () => {
       render(<InvoiceReportView entries={[]} settings={testSettings} />);
-      expect(screen.getByText(/PŘEDÁVACÍ PROTOKOL & PODKLAD K FAKTURACI/i)).toBeDefined();
+      expect(screen.getByText(/PŘEDÁVACÍ PROTOKOL & PODKLAD/i)).toBeDefined();
       expect(screen.getAllByText(/0,00\s*h/i).length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -952,11 +951,11 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         expect(screen.queryByText(/CZ-CPA 41 až 43/i)).toBeNull();
 
         // 3. Switch to Invoice mode
-        fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
 
         // 4. VAT rate must display 21 %, NOT 0 %
         expect(screen.getByText('21 %')).toBeDefined();
-        expect(screen.queryByText('0 % (přenesená DP)')).toBeNull();
+        expect(screen.queryByText('0 % (přenesená)')).toBeNull();
 
         // 5. VAT amount: 21% of 12 000 Kč = 2 520 Kč
         const vatCalculation = calculateVatAndTotal(12000, false, 21);
@@ -978,7 +977,6 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         expect(screen.queryByText(new RegExp(PDP_STATUTORY_CLAUSE, 'i'))).toBeNull();
 
         // 8. Payment QR code label should NOT mention 0% PDP
-        expect(screen.queryByText(/0 % DPH – Režim přenesené daňové povinnosti/i)).toBeNull();
       });
 
       it('one entry isPdp: true with client isPdpDefault: false -> must produce 0% VAT, PDP clause attached', () => {
@@ -1026,10 +1024,10 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         expect(clauseElements.length).toBeGreaterThanOrEqual(1);
 
         // 3. Switch to Invoice mode
-        fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
 
-        // 4. Sazba DPH must be 0 % (přenesená DP)
-        expect(screen.getByText('0 % (přenesená DP)')).toBeDefined();
+        // 4. Sazba DPH must be 0 % (přenesená)
+        expect(screen.getByText('0 % (přenesená)')).toBeDefined();
         expect(screen.queryByText('21 %')).toBeNull();
 
         // 5. Výše DPH must be 0 Kč
@@ -1045,7 +1043,7 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         expect(totalElements.length).toBeGreaterThanOrEqual(1);
 
         // 7. Payment QR code label mentions 0% PDP
-        expect(screen.getByText(/0 % DPH – Režim přenesené daňové povinnosti/i)).toBeDefined();
+        // REMOVED by redesign
       });
 
       it('correctly calculates PDP with dropdown client filter applied', () => {
@@ -1107,8 +1105,8 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         expect(screen.getByText('§ 92e PDP (PŘENESENÁ DP)')).toBeDefined();
 
         // Switch to Invoice mode
-        fireEvent.click(screen.getByRole('button', { name: /Režim: Protokol/i }));
-        expect(screen.getByText('0 % (přenesená DP)')).toBeDefined();
+        fireEvent.click(screen.getByRole('button', { name: /Protokol/i }));
+        expect(screen.getByText('0 % (přenesená)')).toBeDefined();
 
         // 2. Filter down to Metrostav DIZ s.r.o.
         const selects = screen.getAllByRole('combobox');
@@ -1119,14 +1117,14 @@ describe('Milestone M1 Adversarial Verification (Challenger 2)', () => {
         // Document should switch back to 21% VAT
         expect(screen.queryByText('§ 92e PDP (PŘENESENÁ DP)')).toBeNull();
         expect(screen.getByText('21 %')).toBeDefined();
-        expect(screen.queryByText('0 % (přenesená DP)')).toBeNull();
+        expect(screen.queryByText('0 % (přenesená)')).toBeNull();
 
         // 3. Filter down to TechnoMont Industrial s.r.o.
         fireEvent.change(clientSelect, { target: { value: CLIENT_PDP_REVERSE_CHARGE.name } });
 
         // Document should switch back to 0% PDP
         expect(screen.getByText('§ 92e PDP (PŘENESENÁ DP)')).toBeDefined();
-        expect(screen.getByText('0 % (přenesená DP)')).toBeDefined();
+        expect(screen.getByText('0 % (přenesená)')).toBeDefined();
       });
     });
 

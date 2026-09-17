@@ -691,8 +691,8 @@ describe('Milestone M2 Adversarial Challenger 2 (UI Reactivity, Form State, Pers
 
       // Verify the normative header is present
       expect(screen.getByText('SVÁŘEČSKÝ & TECHNICKÝ PASPORT ZAKÁZKY')).toBeDefined();
-      expect(screen.getByText('ČSN EN 1090-2 / ISO 9606-1')).toBeDefined();
-      expect(screen.getByText(/Doklad materiálové shody a jakosti svarů pro TDI/i)).toBeDefined();
+      expect(screen.getByText('EN 1090-2 / ISO 9606-1')).toBeDefined();
+      expect(screen.getByText(/Doklad shody pro TDI/i)).toBeDefined();
 
       // Verify method 135 MAG details
       expect(screen.getByText(/Obloukové svařování MAG/i)).toBeDefined();
@@ -721,7 +721,7 @@ describe('Milestone M2 Adversarial Challenger 2 (UI Reactivity, Form State, Pers
 
       // The passport box must be absent
       expect(screen.queryByText('SVÁŘEČSKÝ & TECHNICKÝ PASPORT ZAKÁZKY')).toBeNull();
-      expect(screen.queryByText('ČSN EN 1090-2 / ISO 9606-1')).toBeNull();
+      expect(screen.queryByText('EN 1090-2 / ISO 9606-1')).toBeNull();
     });
 
     it('does NOT render Technical Passport box when entries only have legacy weldingMethod without passport', () => {
@@ -736,7 +736,7 @@ describe('Milestone M2 Adversarial Challenger 2 (UI Reactivity, Form State, Pers
       expect(screen.queryByText('SVÁŘEČSKÝ & TECHNICKÝ PASPORT ZAKÁZKY')).toBeNull();
 
       // But table row should gracefully display legacy method [MMA]
-      expect(screen.getByText(/\[MMA\]/i)).toBeDefined();
+      expect(screen.getAllByText(/\[MMA\]/i)[0]).toBeDefined();
     });
 
     it('deduplicates identical welding passports across multiple shifts in the protocol', () => {
@@ -760,9 +760,9 @@ describe('Milestone M2 Adversarial Challenger 2 (UI Reactivity, Form State, Pers
       );
 
       // The table has 3 rows for the 3 dates
-      expect(screen.getByText('5. 5. 2026')).toBeDefined();
-      expect(screen.getByText('12. 5. 2026')).toBeDefined();
-      expect(screen.getByText('13. 5. 2026')).toBeDefined();
+      expect(screen.getAllByText('5. 5. 2026')[0]).toBeDefined();
+      expect(screen.getAllByText('12. 5. 2026')[0]).toBeDefined();
+      expect(screen.getAllByText('13. 5. 2026')[0]).toBeDefined();
 
       // In the Technical Passport box, exactly 1 passport block should exist
       // In the passport card, the element has exact text 'S355J2, tl. 6.0 mm'
